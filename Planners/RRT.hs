@@ -106,9 +106,9 @@ getPathToGoal :: RandomGen g => RRT s g -> [s]
 getPathToGoal rrt =
   case _solution rrt of
     Nothing -> []
-    Just goalNode -> reverse $ go goalNode
-  where go (Root s) = [s]
-        go (Node s p) = s : (go p)
+    Just goalNode -> go goalNode []
+  where go (Root s) path = s:path
+        go (Node s p) path = go p $ s:path
 
 solveRRT :: RandomGen g => MotionPlanningProblem s g -> Double -> Int -> CMR.Rand g [s]
 solveRRT problem stepSize numIterations =
