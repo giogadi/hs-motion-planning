@@ -13,13 +13,10 @@ module Planners.RRT
 import Data.StateSpace
 import Data.MotionPlanningProblem
 
-import Data.List (minimumBy)
-import Debug.Trace (trace)
-import Data.Maybe (isJust, fromJust)
+import Data.Maybe (isJust)
 import System.Random (RandomGen, mkStdGen, StdGen)
 import qualified Control.Monad.Random as CMR
 import Data.List (foldl1', intercalate)
-import Data.Foldable (foldr', sum, toList)
 import Data.Function (on)
 -- import qualified Test.QuickCheck as QC
 -- import Test.Framework (testGroup)
@@ -28,28 +25,34 @@ import Data.Function (on)
 data Node s = Root s | Node s (Node s)
 
 nodeState :: Node s -> s
+{-# INLINE nodeState #-}
 nodeState (Root s) = s
 nodeState (Node s _) = s
 
 data RRT s g = RRT
-    { _problem  :: MotionPlanningProblem s g
-    , _stepSize :: Double
-    , _nodes    :: [Node s]
-    , _solution :: Maybe (Node s)}
+               { _problem  :: MotionPlanningProblem s g
+               , _stepSize :: Double
+               , _nodes    :: [Node s]
+               , _solution :: Maybe (Node s)
+               }
 
 getSpace :: RRT s g -> StateSpace s g
+{-# INLINE getSpace #-}
 getSpace = _stateSpace . _problem
 
 getNonMetricDist :: RRT s g -> (s -> s -> Double)
+{-# INLINE getNonMetricDist #-}
 getNonMetricDist rrt = _fastNonMetricDistance $ getSpace rrt
 
 getDist :: RRT s g -> (s -> s -> Double)
+{-# INLINE getDist #-}
 getDist rrt = _stateDistance $ getSpace rrt
 
 getValidityFn :: RRT s g -> MotionValidityFn s
 getValidityFn rrt = _motionValidity $ _problem rrt
 
 getInterp :: RRT s g -> (s -> s -> Double -> s)
+{-# INLINE getInterp #-}
 getInterp rrt = _interpolate $ getSpace rrt
 
 getNumStates :: RRT s g -> Int
@@ -62,15 +65,16 @@ writeRRT rrt fileName = writeFile fileName $ intercalate "\n" edgeStrings
           stringFromEdge (Node s p) = (show s) ++ " " ++ (show $ nodeState p)
 
 -- A strict implementation of minimumBy
--- minimumBy' :: (a -> a -> Ordering) -> [a] -> a
--- minimumBy' cmp = foldl1' min'
---     where min' x y = case cmp x y of
---                        GT -> y
---                        _  -> x
+minimumBy' :: (a -> a -> Ordering) -> [a] -> a
+minimumBy' cmp = foldl1' min'
+    where
+      min' x y = case cmp x y of
+                       GT -> y
+                       _  -> x
 
 nearestNode :: RRT s g -> s -> Node s
 nearestNode rrt sample = let compareFn = compare `on` ((getNonMetricDist rrt $ sample) . nodeState)
-                         in  minimumBy compareFn (_nodes rrt)
+                         in  minimumBy' compareFn (_nodes rrt)
 
 extendRRT :: RRT s g -> s -> RRT s g
 extendRRT rrt sample =

@@ -5,7 +5,6 @@ module Data.MotionPlanningProblem
        , goalStateSatisfied ) where
 
 import Data.StateSpace
-import Debug.Trace (trace)
 
 type MotionValidityFn s = s -> s -> Bool
 
