@@ -14,7 +14,8 @@ import Data.StateSpace
 import Data.MotionPlanningProblem
 
 import Data.Maybe (isJust)
-import System.Random (RandomGen, mkStdGen, StdGen)
+import System.Random (RandomGen)
+import System.Random.Mersenne.Pure64 (PureMT, pureMT)
 import qualified Control.Monad.Random as CMR
 import Data.List (foldl1', intercalate)
 import Data.Function (on)
@@ -118,13 +119,13 @@ solveRRT :: RandomGen g => MotionPlanningProblem s g -> Double -> Int -> CMR.Ran
 solveRRT problem stepSize numIterations =
   fmap getPathToGoal $ buildRRT problem stepSize numIterations
 
-buildRRTDefaultSeed :: MotionPlanningProblem s StdGen -> Double -> Int -> RRT s StdGen
+buildRRTDefaultSeed :: MotionPlanningProblem s PureMT -> Double -> Int -> RRT s PureMT
 buildRRTDefaultSeed problem stepSize numIterations =
-  CMR.evalRand (buildRRT problem stepSize numIterations) (mkStdGen 1)
+  CMR.evalRand (buildRRT problem stepSize numIterations) (pureMT 1)
 
-solveRRTDefaultSeed :: MotionPlanningProblem s StdGen -> Double -> Int -> [s]
+solveRRTDefaultSeed :: MotionPlanningProblem s PureMT -> Double -> Int -> [s]
 solveRRTDefaultSeed problem stepSize numIterations =
-  CMR.evalRand (solveRRT problem stepSize numIterations) (mkStdGen 1)
+  CMR.evalRand (solveRRT problem stepSize numIterations) (pureMT 1)
 
 -- --------------------------------------------------
 -- -- Tests
