@@ -41,20 +41,20 @@ getSpace :: RRT s -> StateSpace s
 {-# INLINE getSpace #-}
 getSpace = _stateSpace . _problem
 
-getNonMetricDist :: RRT s -> (s -> s -> Double)
-{-# INLINE getNonMetricDist #-}
-getNonMetricDist rrt = _fastNonMetricDistance $ getSpace rrt
+getDistSqrd :: RRT s -> (s -> s -> Double)
+{-# INLINE getDistSqrd #-}
+getDistSqrd = (_stateDistanceSqrd . getSpace)
 
 getDist :: RRT s -> (s -> s -> Double)
 {-# INLINE getDist #-}
-getDist rrt = _stateDistance $ getSpace rrt
+getDist = (_stateDistance . getSpace)
 
 getValidityFn :: RRT s -> MotionValidityFn s
-getValidityFn rrt = _motionValidity $ _problem rrt
+getValidityFn = (_motionValidity . _problem)
 
 getInterp :: RRT s -> (s -> s -> Double -> s)
 {-# INLINE getInterp #-}
-getInterp rrt = _interpolate $ getSpace rrt
+getInterp = (_interpolate . getSpace)
 
 getNumStates :: RRT s -> Int
 getNumStates = length . _nodes
@@ -74,7 +74,7 @@ minimumBy' cmp = foldl1' min'
                        _  -> x
 
 nearestNode :: RRT s -> s -> Node s
-nearestNode rrt sample = let compareFn = compare `on` ((getNonMetricDist rrt $ sample) . nodeState)
+nearestNode rrt sample = let compareFn = compare `on` ((getDistSqrd rrt $ sample) . nodeState)
                          in  minimumBy' compareFn (_nodes rrt)
 
 extendRRT :: RRT s -> s -> RRT s

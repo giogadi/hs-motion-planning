@@ -33,7 +33,7 @@ interpolate (Point2D x1 y1) (Point2D x2 y2) d
                     v2 = y2 - y1
                 in  Point2D (x1 + d*v1) (y1 + d*v2)
 
-getUniformSampler :: Point2D -> Point2D -> SS.UniformSampler Point2D
+getUniformSampler :: Point2D -> Point2D -> SS.StateSampler Point2D
 getUniformSampler (Point2D xmin ymin) (Point2D xmax ymax) =
     (liftM2 Point2D)
     (CMR.getRandomR (xmin, xmax))

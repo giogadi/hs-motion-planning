@@ -43,7 +43,7 @@ interpolate s1 s2 d
                 in  s1 `addV` (scaleV v d)
 
 getUniformSampler :: FL.FixedList f =>
-                     f Double -> f Double -> SS.UniformSampler (f Double)
+                     f Double -> f Double -> SS.StateSampler (f Double)
 getUniformSampler minState maxState = let bounds = pure (,) <*> minState <*> maxState
                                       in  sequenceA $ fmap CMR.getRandomR bounds
 
