@@ -1,5 +1,6 @@
 module Data.Spaces.RealVectorStateSpace
-       ( makeRealVectorStateSpace ) where
+       ( makeRealVectorStateSpace
+       ) where
 
 import qualified Data.FixedList as FL
 import Control.Applicative
@@ -41,13 +42,13 @@ interpolate s1 s2 d
   | otherwise = let v = s2 `minusV` s1
                 in  s1 `addV` (scaleV v d)
 
-getUniformSampler :: (FL.FixedList f, CMR.RandomGen g) =>
-                     f Double -> f Double -> CMR.Rand g (f Double)
+getUniformSampler :: FL.FixedList f =>
+                     f Double -> f Double -> SS.UniformSampler (f Double)
 getUniformSampler minState maxState = let bounds = pure (,) <*> minState <*> maxState
                                       in  sequenceA $ fmap CMR.getRandomR bounds
 
-makeRealVectorStateSpace :: (FL.FixedList f, CMR.RandomGen g) =>
-                            f Double -> f Double -> SS.StateSpace (f Double) g
+makeRealVectorStateSpace :: FL.FixedList f =>
+                            f Double -> f Double -> SS.StateSpace (f Double)
 makeRealVectorStateSpace minState maxState = SS.StateSpace
                                              stateDistance
                                              stateDistanceSqrd

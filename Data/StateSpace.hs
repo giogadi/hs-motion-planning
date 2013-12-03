@@ -1,11 +1,16 @@
 module Data.StateSpace
-       ( StateSpace(..) ) where
+       ( StateSpace(..)
+       , UniformSampler
+       ) where
 
 import qualified Control.Monad.Random as CMR
+import System.Random.Mersenne.Pure64 (PureMT)
 
-data StateSpace s g = StateSpace
-                      { _stateDistance :: s -> s -> Double
-                      , _fastNonMetricDistance :: s -> s -> Double
-                      , _interpolate :: s -> s -> Double -> s
-                      , _sampleUniform :: CMR.Rand g s
-                      }
+type UniformSampler s = CMR.Rand PureMT s
+
+data StateSpace s = StateSpace
+                    { _stateDistance :: s -> s -> Double
+                    , _fastNonMetricDistance :: s -> s -> Double
+                    , _interpolate :: s -> s -> Double -> s
+                    , _sampleUniform :: UniformSampler s
+                    }

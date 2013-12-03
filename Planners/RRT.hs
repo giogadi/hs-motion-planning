@@ -30,36 +30,36 @@ nodeState :: Node s -> s
 nodeState (Root s) = s
 nodeState (Node s _) = s
 
-data RRT s g = RRT
-               { _problem  :: MotionPlanningProblem s g
-               , _stepSize :: Double
-               , _nodes    :: [Node s]
-               , _solution :: Maybe (Node s)
-               }
+data RRT s = RRT
+             { _problem  :: MotionPlanningProblem s
+             , _stepSize :: Double
+             , _nodes    :: [Node s]
+             , _solution :: Maybe (Node s)
+             }
 
-getSpace :: RRT s g -> StateSpace s g
+getSpace :: RRT s -> StateSpace s
 {-# INLINE getSpace #-}
 getSpace = _stateSpace . _problem
 
-getNonMetricDist :: RRT s g -> (s -> s -> Double)
+getNonMetricDist :: RRT s -> (s -> s -> Double)
 {-# INLINE getNonMetricDist #-}
 getNonMetricDist rrt = _fastNonMetricDistance $ getSpace rrt
 
-getDist :: RRT s g -> (s -> s -> Double)
+getDist :: RRT s -> (s -> s -> Double)
 {-# INLINE getDist #-}
 getDist rrt = _stateDistance $ getSpace rrt
 
-getValidityFn :: RRT s g -> MotionValidityFn s
+getValidityFn :: RRT s -> MotionValidityFn s
 getValidityFn rrt = _motionValidity $ _problem rrt
 
-getInterp :: RRT s g -> (s -> s -> Double -> s)
+getInterp :: RRT s -> (s -> s -> Double -> s)
 {-# INLINE getInterp #-}
 getInterp rrt = _interpolate $ getSpace rrt
 
-getNumStates :: RRT s g -> Int
+getNumStates :: RRT s -> Int
 getNumStates = length . _nodes
 
-writeRRT :: Show s => RRT s g -> String -> IO ()
+writeRRT :: Show s => RRT s -> String -> IO ()
 writeRRT rrt fileName = writeFile fileName $ intercalate "\n" edgeStrings
     where edgeStrings = map stringFromEdge $ _nodes rrt
           stringFromEdge (Root _) = ""
@@ -73,11 +73,11 @@ minimumBy' cmp = foldl1' min'
                        GT -> y
                        _  -> x
 
-nearestNode :: RRT s g -> s -> Node s
+nearestNode :: RRT s -> s -> Node s
 nearestNode rrt sample = let compareFn = compare `on` ((getNonMetricDist rrt $ sample) . nodeState)
                          in  minimumBy' compareFn (_nodes rrt)
 
-extendRRT :: RRT s g -> s -> RRT s g
+extendRRT :: RRT s -> s -> RRT s
 extendRRT rrt sample =
     let near = nearestNode rrt sample
         nearState = nodeState near
@@ -93,7 +93,7 @@ extendRRT rrt sample =
              in  RRT (_problem rrt) (_stepSize rrt) (newNode : (_nodes rrt)) solution
         else rrt
 
-buildRRT :: RandomGen g => MotionPlanningProblem s g -> Double -> Int -> CMR.Rand g (RRT s g)
+buildRRT :: MotionPlanningProblem s -> Double -> Int -> CMR.Rand PureMT (RRT s)
 buildRRT problem stepSize numIterations =
     let start = _startState problem
         beginRRT = RRT problem stepSize [(Root start)] Nothing
@@ -107,7 +107,7 @@ buildRRT problem stepSize numIterations =
           go newRRT (iteration + 1)
         where sample = _sampleUniform $ _stateSpace problem
 
-getPathToGoal :: RandomGen g => RRT s g -> [s]
+getPathToGoal :: RRT s -> [s]
 getPathToGoal rrt =
   case _solution rrt of
     Nothing -> []
@@ -115,15 +115,15 @@ getPathToGoal rrt =
   where go (Root s) path = s:path
         go (Node s p) path = go p $ s:path
 
-solveRRT :: RandomGen g => MotionPlanningProblem s g -> Double -> Int -> CMR.Rand g [s]
+solveRRT :: MotionPlanningProblem s -> Double -> Int -> CMR.Rand PureMT [s]
 solveRRT problem stepSize numIterations =
   fmap getPathToGoal $ buildRRT problem stepSize numIterations
 
-buildRRTDefaultSeed :: MotionPlanningProblem s PureMT -> Double -> Int -> RRT s PureMT
+buildRRTDefaultSeed :: MotionPlanningProblem s -> Double -> Int -> RRT s
 buildRRTDefaultSeed problem stepSize numIterations =
   CMR.evalRand (buildRRT problem stepSize numIterations) (pureMT 1)
 
-solveRRTDefaultSeed :: MotionPlanningProblem s PureMT -> Double -> Int -> [s]
+solveRRTDefaultSeed :: MotionPlanningProblem s -> Double -> Int -> [s]
 solveRRTDefaultSeed problem stepSize numIterations =
   CMR.evalRand (solveRRT problem stepSize numIterations) (pureMT 1)
 

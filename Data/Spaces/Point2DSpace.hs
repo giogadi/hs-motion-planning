@@ -3,7 +3,8 @@ module Data.Spaces.Point2DSpace
        , makePoint2DSpace
        , stateDistance
        , stateDistanceSqrd
-       , interpolate ) where
+       , interpolate
+       ) where
 
 import qualified Control.Monad.Random as CMR
 import Control.Monad (liftM2)
@@ -32,13 +33,13 @@ interpolate (Point2D x1 y1) (Point2D x2 y2) d
                     v2 = y2 - y1
                 in  Point2D (x1 + d*v1) (y1 + d*v2)
 
-getUniformSampler :: (CMR.RandomGen g) => Point2D -> Point2D -> CMR.Rand g (Point2D)
+getUniformSampler :: Point2D -> Point2D -> SS.UniformSampler Point2D
 getUniformSampler (Point2D xmin ymin) (Point2D xmax ymax) =
     (liftM2 Point2D)
     (CMR.getRandomR (xmin, xmax))
     (CMR.getRandomR (ymin, ymax))
 
-makePoint2DSpace :: CMR.RandomGen g => Point2D -> Point2D -> SS.StateSpace Point2D g
+makePoint2DSpace :: Point2D -> Point2D -> SS.StateSpace Point2D
 makePoint2DSpace pmin pmax = SS.StateSpace
                              stateDistance
                              stateDistanceSqrd
