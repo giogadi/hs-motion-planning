@@ -13,8 +13,9 @@ main = let minState = 0.0 :. 0.0 :. 0.0 :. Nil
                { _stateSpace = ss
                , _startState = minState
                , _goalSatisfied = goalStateSatisfied ss 0.2 maxState
-               , _motionValidity = \_ _ -> True }
-           rrt = buildRRTDefaultSeed p 0.1 1000
+               }
+           valid _ _ = True
+           rrt = buildRRTDefaultSeed p valid 0.1 1000
            motionPlan = getPathToGoal rrt
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."

@@ -16,32 +16,25 @@ import Data.List (sortBy, minimumBy)
 import Data.Function (on)
 import Data.Monoid
 
-type MotionCost s c = s -> s -> c
-
 -- A roadmap is a graph with state type s and cost space c
 data Roadmap s c = Roadmap
-                   { _problem :: MotionPlanningProblem s
+                   { _space :: StateSpace s
+                   , _valid :: MotionValidity s
                    , _cost  :: MotionCost s c
-                   , _graph   :: Gr s c
+                   , _graph :: Gr s c
                    }
 
-getSpace :: Roadmap s c -> StateSpace s
-getSpace = _stateSpace . _problem
-
-valid :: Roadmap s c -> MotionValidityFn s
-valid = _motionValidity . _problem
-
 distSqrd :: Roadmap s c -> s -> s -> Double
-distSqrd = _stateDistanceSqrd . getSpace
+distSqrd = _stateDistanceSqrd . _space
 
 dist :: Roadmap s c -> s -> s -> Double
-dist = _stateDistance . getSpace
+dist = _stateDistance . _space
 
 sample :: Roadmap s c -> StateSampler s
-sample = _sampleUniform . getSpace
+sample = _sampleUniform . _space
 
 interp :: Roadmap s c -> s -> s -> Double -> s
-interp = _interpolate . getSpace
+interp = _interpolate . _space
 
 -- In expandRoadmap, this function allows for specifying which graph
 -- nodes to attempt to connect the new node to
@@ -53,7 +46,7 @@ type ConnectStrategy s c = Roadmap s c -> [LNode s]
 expandRoadmap :: Roadmap s c -> ConnectStrategy s c -> s -> Roadmap s c
 expandRoadmap rm cs newState =
   let nbrs = cs rm
-      validNbrs = filter (valid rm newState . snd) nbrs
+      validNbrs = filter (_valid rm newState . snd) nbrs
   in
    case validNbrs of
      []      -> rm
@@ -61,7 +54,7 @@ expandRoadmap rm cs newState =
                     newAdjs  = zip costs (map fst lnodes)
                     newGraph = (newAdjs, head $ newNodes 1 (_graph rm), newState, newAdjs) &
                                _graph rm
-                in  Roadmap (_problem rm) (_cost rm) newGraph
+                in  Roadmap (_space rm) (_valid rm) (_cost rm) newGraph
 
 -- A strategy for generating all states in a roadmap within a given
 -- radius of a given state.

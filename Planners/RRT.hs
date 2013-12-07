@@ -30,6 +30,7 @@ nodeState (Node s _) = s
 
 data RRT s = RRT
              { _problem  :: MotionPlanningProblem s
+             , _valid    :: MotionValidity s
              , _stepSize :: Double
              , _nodes    :: [Node s]
              , _solution :: Maybe (Node s)
@@ -46,9 +47,6 @@ getDistSqrd = _stateDistanceSqrd . getSpace
 getDist :: RRT s -> s -> s -> Double
 {-# INLINE getDist #-}
 getDist = _stateDistance . getSpace
-
-getValidityFn :: RRT s -> MotionValidityFn s
-getValidityFn = _motionValidity . _problem
 
 getInterp :: RRT s -> s -> s -> Double -> s
 {-# INLINE getInterp #-}
@@ -83,18 +81,18 @@ extendRRT rrt sample =
                    in  if d <= _stepSize rrt
                        then nearState
                        else getInterp rrt nearState sample $ _stepSize rrt / d
-    in  if getValidityFn rrt nearState newState
+    in  if _valid rrt nearState newState
         then let newNode = Node newState near
                  solution = if (_goalSatisfied $ _problem rrt) newState
                             then Just newNode
                             else Nothing
-             in  RRT (_problem rrt) (_stepSize rrt) (newNode : _nodes rrt) solution
+             in  RRT (_problem rrt) (_valid rrt) (_stepSize rrt) (newNode : _nodes rrt) solution
         else rrt
 
-buildRRT :: MotionPlanningProblem s -> Double -> Int -> CMR.Rand PureMT (RRT s)
-buildRRT problem stepSize numIterations =
+buildRRT :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> CMR.Rand PureMT (RRT s)
+buildRRT problem valid stepSize numIterations =
     let start = _startState problem
-        beginRRT = RRT problem stepSize [Root start] Nothing
+        beginRRT = RRT problem valid stepSize [Root start] Nothing
     in  go beginRRT 0
     where
       go rrt iteration
@@ -113,17 +111,17 @@ getPathToGoal rrt =
   where go (Root s) path = s:path
         go (Node s p) path = go p $ s:path
 
-solveRRT :: MotionPlanningProblem s -> Double -> Int -> CMR.Rand PureMT [s]
-solveRRT problem stepSize numIterations =
-  fmap getPathToGoal $ buildRRT problem stepSize numIterations
+solveRRT :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> CMR.Rand PureMT [s]
+solveRRT problem motionValidity stepSize numIterations =
+  fmap getPathToGoal $ buildRRT problem motionValidity stepSize numIterations
 
-buildRRTDefaultSeed :: MotionPlanningProblem s -> Double -> Int -> RRT s
-buildRRTDefaultSeed problem stepSize numIterations =
-  CMR.evalRand (buildRRT problem stepSize numIterations) (pureMT 1)
+buildRRTDefaultSeed :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> RRT s
+buildRRTDefaultSeed problem motionValidity stepSize numIterations =
+  CMR.evalRand (buildRRT problem motionValidity stepSize numIterations) (pureMT 1)
 
-solveRRTDefaultSeed :: MotionPlanningProblem s -> Double -> Int -> [s]
-solveRRTDefaultSeed problem stepSize numIterations =
-  CMR.evalRand (solveRRT problem stepSize numIterations) (pureMT 1)
+solveRRTDefaultSeed :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> [s]
+solveRRTDefaultSeed problem motionValidity stepSize numIterations =
+  CMR.evalRand (solveRRT problem motionValidity stepSize numIterations) (pureMT 1)
 
 -- --------------------------------------------------
 -- -- Tests
