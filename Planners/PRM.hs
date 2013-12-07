@@ -1,6 +1,7 @@
 module Planners.PRM
        ( Roadmap
-       , expandRoadmapR ) where
+       , expandRoadmapR
+       , expandRoadmapK ) where
 
 -- Motion Planning imports
 import Data.StateSpace
@@ -8,12 +9,14 @@ import Data.Cost
 import Data.MotionPlanningProblem
 
 -- Graph library imports
-import Data.Graph.Inductive
+import Data.Graph.Inductive hiding (dijkstra)
+import Data.Graph.Dijkstra
 
 -- Standard imports
-import Data.Maybe (fromJust)
 import Data.List (sortBy, minimumBy)
 import Data.Function (on)
+import qualified Control.Monad.Random as CMR
+import Data.Monoid
 
 -- A roadmap is a graph with state type s and cost space c
 data Roadmap s c = Roadmap
@@ -21,9 +24,6 @@ data Roadmap s c = Roadmap
                    , _cSpace  :: CostSpace c s
                    , _graph   :: Gr s c
                    }
-
-stateFilter :: Roadmap s c -> (s -> Bool) -> [LNode s]
-stateFilter rm f = filter (f . snd) $ labNodes (_graph rm)
 
 getSpace :: Roadmap s c -> StateSpace s
 getSpace = _stateSpace . _problem
@@ -35,16 +35,16 @@ cost :: Roadmap s c -> (s -> s -> c)
 cost = _motionCost . _cSpace
 
 distSqrd :: Roadmap s c -> (s -> s -> Double)
-distSqrd = (_stateDistanceSqrd . _stateSpace . _problem)
+distSqrd = (_stateDistanceSqrd . getSpace)
 
 dist :: Roadmap s c -> (s -> s -> Double)
-dist = (_stateDistance . _stateSpace . _problem)
+dist = (_stateDistance . getSpace)
 
 sample :: Roadmap s c -> StateSampler s
-sample = (_sampleUniform . _stateSpace . _problem)
+sample = (_sampleUniform . getSpace)
 
 interp :: Roadmap s c -> (s -> s -> Double -> s)
-interp = (_interpolate . _stateSpace . _problem)
+interp = (_interpolate . getSpace)
 
 -- In expandRoadmap, this function allows for specifying which graph
 -- nodes to attempt to connect the new node to
@@ -80,15 +80,14 @@ kNearestStrategy s k rm = take k $ sortBy near $ labNodes $ _graph rm
   where near = compare `on` ((distSqrd rm $ s) . snd)
 
 -- Expand the roadmap using the withinRadiusStrategy
-expandRoadmapR :: Roadmap s c -> s -> Double -> Roadmap s c
-expandRoadmapR rm newState radius =
+expandRoadmapR :: Roadmap s c -> Double -> s -> Roadmap s c
+expandRoadmapR rm radius newState =
   expandRoadmap rm (withinRadiusStrategy newState radius) newState
 
 -- Expand the roadmap using the kNearestStrategy
-expandRoadmapK :: Roadmap s c -> s -> Int -> Roadmap s c
-expandRoadmapK rm newState k =
+expandRoadmapK :: Roadmap s c -> Int -> s -> Roadmap s c
+expandRoadmapK rm k newState =
   expandRoadmap rm (kNearestStrategy newState k) newState
-
 
 -- Strategy used to generate new states to add to the roadmap
 type SamplingStrategy s c = Roadmap s c -> StateSampler s
@@ -106,3 +105,19 @@ voronoiSamplingStrategy stepSize rm = do
     else return $ (interp rm) nearState sampleState (stepSize / d)
 
   where near s = compare `on` (distSqrd rm $ s)
+
+-- We require this hacky typeclass instance so we can use Dijkstra
+-- shortest paths, which currently requires a cost type that is an
+-- instance of Ord.
+data OrderedCost s c = OrderedCost (CostSpace c s) c
+
+instance (Eq c) => Eq (OrderedCost s c) where
+  (OrderedCost _ c1) == (OrderedCost _ c2) = c1 == c2
+
+instance (Eq c) => Ord (OrderedCost s c) where
+  (OrderedCost cs c1) `compare` (OrderedCost _ c2) = (_cmp cs) c1 c2
+
+shortestPath :: (Eq c) => Roadmap s c -> Node -> Node -> [LNode s]
+shortestPath rm s g = dijkstra (emap (OrderedCost (_cSpace rm)) (_graph rm)) s g accum idCost
+  where accum (OrderedCost cs c1) (OrderedCost _ c2) = OrderedCost cs $ ((_accumCost . _cSpace) rm) c1 c2
+        idCost = OrderedCost (_cSpace rm) ((_idCost . _cSpace) rm)

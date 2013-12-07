@@ -10,18 +10,16 @@ module Planners.RRT
          -- , rrtTests
        ) where
 
+-- Moton planning imports
 import Data.StateSpace
 import Data.MotionPlanningProblem
 
+-- Standard imports
 import Data.Maybe (isJust)
-import System.Random (RandomGen)
 import System.Random.Mersenne.Pure64 (PureMT, pureMT)
 import qualified Control.Monad.Random as CMR
 import Data.List (foldl1', intercalate)
 import Data.Function (on)
--- import qualified Test.QuickCheck as QC
--- import Test.Framework (testGroup)
--- import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 data Node s = Root s | Node s (Node s)
 

@@ -1,13 +1,13 @@
 module Data.Cost
        where
 
-data CostSpace c s = CostSpace
+data CostSpace c s =
+  CostSpace
   { _motionCost :: s -> s -> c
   , _accumCost  :: c -> c -> c
   , _idCost     :: c
   , _infCost    :: c
-  , _cmp        :: c -> c -> Bool -- Returns true if first argument is
-                                  -- strictly better than second
+  , _cmp        :: c -> c -> Ordering
   }
 
 pathCost :: [s] -> CostSpace c s -> c
