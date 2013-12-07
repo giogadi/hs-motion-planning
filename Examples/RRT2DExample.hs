@@ -24,7 +24,7 @@ main = let minState = Point2D 0.0 0.0
            rrt = buildRRTDefaultSeed p 0.01 5000
            motionPlan = getPathToGoal rrt
        in do
-         putStrLn $ "Computed a motion plan with " ++ (show $ Prelude.length motionPlan) ++ " states."
-         putStrLn $ "Num states in tree: " ++ (show $ getNumStates rrt)
-         putStrLn $ "Plan:"
-         mapM_ (putStrLn . show) motionPlan
+         putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."
+         putStrLn $ "Num states in tree: " ++ show (getNumStates rrt)
+         putStrLn "Plan:"
+         mapM_ print motionPlan

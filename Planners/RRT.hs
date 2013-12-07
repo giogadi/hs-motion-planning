@@ -39,20 +39,20 @@ getSpace :: RRT s -> StateSpace s
 {-# INLINE getSpace #-}
 getSpace = _stateSpace . _problem
 
-getDistSqrd :: RRT s -> (s -> s -> Double)
+getDistSqrd :: RRT s -> s -> s -> Double
 {-# INLINE getDistSqrd #-}
-getDistSqrd = (_stateDistanceSqrd . getSpace)
+getDistSqrd = _stateDistanceSqrd . getSpace
 
-getDist :: RRT s -> (s -> s -> Double)
+getDist :: RRT s -> s -> s -> Double
 {-# INLINE getDist #-}
-getDist = (_stateDistance . getSpace)
+getDist = _stateDistance . getSpace
 
 getValidityFn :: RRT s -> MotionValidityFn s
-getValidityFn = (_motionValidity . _problem)
+getValidityFn = _motionValidity . _problem
 
-getInterp :: RRT s -> (s -> s -> Double -> s)
+getInterp :: RRT s -> s -> s -> Double -> s
 {-# INLINE getInterp #-}
-getInterp = (_interpolate . getSpace)
+getInterp = _interpolate . getSpace
 
 getNumStates :: RRT s -> Int
 getNumStates = length . _nodes
@@ -61,7 +61,7 @@ writeRRT :: Show s => RRT s -> String -> IO ()
 writeRRT rrt fileName = writeFile fileName $ intercalate "\n" edgeStrings
     where edgeStrings = map stringFromEdge $ _nodes rrt
           stringFromEdge (Root _) = ""
-          stringFromEdge (Node s p) = (show s) ++ " " ++ (show $ nodeState p)
+          stringFromEdge (Node s p) = show s ++ " " ++ show (nodeState p)
 
 -- A strict implementation of minimumBy
 minimumBy' :: (a -> a -> Ordering) -> [a] -> a
@@ -72,36 +72,36 @@ minimumBy' cmp = foldl1' min'
                        _  -> x
 
 nearestNode :: RRT s -> s -> Node s
-nearestNode rrt sample = let compareFn = compare `on` ((getDistSqrd rrt $ sample) . nodeState)
+nearestNode rrt sample = let compareFn = compare `on` (getDistSqrd rrt sample . nodeState)
                          in  minimumBy' compareFn (_nodes rrt)
 
 extendRRT :: RRT s -> s -> RRT s
 extendRRT rrt sample =
     let near = nearestNode rrt sample
         nearState = nodeState near
-        newState = let d = (getDist rrt) nearState sample
+        newState = let d = getDist rrt nearState sample
                    in  if d <= _stepSize rrt
                        then nearState
-                       else (getInterp rrt) nearState sample $ ((_stepSize rrt) / d)
-    in  if (getValidityFn rrt) nearState newState
+                       else getInterp rrt nearState sample $ _stepSize rrt / d
+    in  if getValidityFn rrt nearState newState
         then let newNode = Node newState near
                  solution = if (_goalSatisfied $ _problem rrt) newState
                             then Just newNode
                             else Nothing
-             in  RRT (_problem rrt) (_stepSize rrt) (newNode : (_nodes rrt)) solution
+             in  RRT (_problem rrt) (_stepSize rrt) (newNode : _nodes rrt) solution
         else rrt
 
 buildRRT :: MotionPlanningProblem s -> Double -> Int -> CMR.Rand PureMT (RRT s)
 buildRRT problem stepSize numIterations =
     let start = _startState problem
-        beginRRT = RRT problem stepSize [(Root start)] Nothing
+        beginRRT = RRT problem stepSize [Root start] Nothing
     in  go beginRRT 0
     where
       go rrt iteration
         | iteration >= numIterations = return rrt
         | isJust $ _solution rrt = return rrt
         | otherwise = do
-          newRRT <- (extendRRT rrt) `fmap` sample
+          newRRT <- extendRRT rrt `fmap` sample
           go newRRT (iteration + 1)
         where sample = _sampleUniform $ _stateSpace problem
 

@@ -17,11 +17,11 @@ data MotionPlanningProblem s = MotionPlanningProblem
 discreteMotionValid :: StateSpace s -> (s -> Bool) -> Double -> s -> s -> Bool
 discreteMotionValid ss f h s1 s2
   | h <= 0.0  = error "Data.MotionPlanningProblem.discreteMotionValid must have a positive step size"
-  | otherwise = let d = (_stateDistance ss) s1 s2
+  | otherwise = let d = _stateDistance ss s1 s2
                     n = (floor $ d / h) :: Int
                     samplePts = scanl1 (+) (replicate n (h / d))
-                    innerValid = all f $ map ((_interpolate ss) s1 s2) samplePts
-                in  innerValid && (f s2)
+                    innerValid = all f $ map (_interpolate ss s1 s2) samplePts
+                in  innerValid && f s2
 
-goalStateSatisfied :: StateSpace s -> Double -> s -> (s -> Bool)
-goalStateSatisfied ss tol goalState s = (_stateDistanceSqrd ss) s goalState <= tol*tol
+goalStateSatisfied :: StateSpace s -> Double -> s -> s -> Bool
+goalStateSatisfied ss tol goalState s = _stateDistanceSqrd ss s goalState <= tol*tol

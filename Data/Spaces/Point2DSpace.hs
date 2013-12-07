@@ -28,14 +28,14 @@ stateDistance p1 p2 = sqrt $ stateDistanceSqrd p1 p2
 interpolate :: Point2D -> Point2D -> Double -> Point2D
 interpolate (Point2D x1 y1) (Point2D x2 y2) d
   | d < 0.0 || d > (1.0 + 1e-8) =
-    error ("Data.Point2DSpace.interpolate's parameter must be in [0,1]" ++ (show d))
+    error $ "Data.Point2DSpace.interpolate's parameter must be in [0,1]" ++ show d
   | otherwise = let v1 = x2 - x1
                     v2 = y2 - y1
                 in  Point2D (x1 + d*v1) (y1 + d*v2)
 
 getUniformSampler :: Point2D -> Point2D -> SS.StateSampler Point2D
 getUniformSampler (Point2D xmin ymin) (Point2D xmax ymax) =
-    (liftM2 Point2D)
+    liftM2 Point2D
     (CMR.getRandomR (xmin, xmax))
     (CMR.getRandomR (ymin, ymax))
 

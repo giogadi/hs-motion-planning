@@ -17,7 +17,7 @@ main = let minState = 0.0 :. 0.0 :. 0.0 :. Nil
            rrt = buildRRTDefaultSeed p 0.1 1000
            motionPlan = getPathToGoal rrt
        in do
-         putStrLn $ "Computed a motion plan with " ++ (show $ Prelude.length motionPlan) ++ " states."
-         putStrLn $ "Num states in tree: " ++ (show $ getNumStates rrt)
-         putStrLn $ "Plan:"
-         mapM_ (putStrLn . show) motionPlan
+         putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."
+         putStrLn $ "Num states in tree: " ++ show (getNumStates rrt)
+         putStrLn "Plan:"
+         mapM_ print motionPlan
