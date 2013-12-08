@@ -95,7 +95,7 @@ buildRRT problem valid stepSize numIterations =
         beginRRT = RRT problem valid stepSize [Root start] Nothing
     in  go beginRRT 0
     where
-      go rrt iteration
+      go rrt iteration -- TODO try having rrt argument be (m rrt)?
         | iteration >= numIterations = return rrt
         | isJust $ _solution rrt = return rrt
         | otherwise = do

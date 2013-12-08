@@ -1,5 +1,6 @@
 module Data.Graph.Dijkstra
        ( dijkstra
+       , dijkstraPath
        ) where
 
 -- Graph library import
@@ -28,14 +29,17 @@ dijkstraInternal g q
         expand (_,_,_,s) dist pathToC =
           map (\(edgeCost,n) -> PQ.singleton (dist `mappend` edgeCost) (n:pathToC)) s
 
--- Given a graph, a start node, and a goal node, returns a list of
--- labeled nodes corresponding to the shortest path from the start to
--- the goal nodes, where the edge costs are accumulated according to
--- the Monoid instance of the edge label type and costs are compared
--- by the edge label's Ord instance
-dijkstra :: (Graph gr, Ord b, Monoid b) => gr a b -> Node -> Node -> [LNode a]
-dijkstra g start goal =
-  let paths = dijkstraInternal g (PQ.singleton `mempty` [start])
+-- Given a graph and a start node, returns a list of lists of nodes
+-- corresponding to the shortest paths from the start to all other
+-- nodes, where the edge costs are accumulated according to the Monoid
+-- instance of the edge label type and costs are compared by the edge
+-- label's Ord instance.
+dijkstra :: (Graph gr, Ord b, Monoid b) => gr a b -> Node -> [[Node]]
+dijkstra g start = dijkstraInternal g (PQ.singleton `mempty` [start])
+
+dijkstraPath :: (Graph gr, Ord b, Monoid b) => gr a b -> Node -> Node -> [LNode a]
+dijkstraPath g start goal =
+  let paths = dijkstra g start
       pathNodes  = find ((goal ==) . head) paths -- Can paths be empty?
   in
    case pathNodes of
