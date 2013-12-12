@@ -13,6 +13,7 @@ import qualified Data.PQueue.Prio.Min as PQ
 import Data.List (find)
 import Data.Maybe (fromJust)
 import Data.Monoid
+import Debug.Trace
 
 -- Internal routine implementing Dijkstra's shortest paths
 -- algorithm. Deemed internal because it needs to be kickstarted with
@@ -35,7 +36,7 @@ dijkstraInternal g q
 -- instance of the edge label type and costs are compared by the edge
 -- label's Ord instance.
 dijkstra :: (Graph gr, Ord b, Monoid b) => gr a b -> Node -> [[Node]]
-dijkstra g start = dijkstraInternal g (PQ.singleton `mempty` [start])
+dijkstra g start = dijkstraInternal g (PQ.singleton mempty [start])
 
 dijkstraPath :: (Graph gr, Ord b, Monoid b) => gr a b -> Node -> Node -> [LNode a]
 dijkstraPath g start goal =

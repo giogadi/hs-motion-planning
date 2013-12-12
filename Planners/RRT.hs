@@ -12,7 +12,6 @@ module Planners.RRT
 
 -- Moton planning imports
 import Data.StateSpace
-import Data.MotionPlanningProblem
 
 -- Standard imports
 import Data.Maybe (isJust)
@@ -29,28 +28,25 @@ nodeState (Root s) = s
 nodeState (Node s _) = s
 
 data RRT s = RRT
-             { _problem  :: MotionPlanningProblem s
+             { _space    :: StateSpace s
+             , _query    :: MotionPlanningQuery s
              , _valid    :: MotionValidity s
              , _stepSize :: Double
              , _nodes    :: [Node s]
              , _solution :: Maybe (Node s)
              }
 
-getSpace :: RRT s -> StateSpace s
-{-# INLINE getSpace #-}
-getSpace = _stateSpace . _problem
-
 getDistSqrd :: RRT s -> s -> s -> Double
 {-# INLINE getDistSqrd #-}
-getDistSqrd = _stateDistanceSqrd . getSpace
+getDistSqrd = _stateDistanceSqrd . _space
 
 getDist :: RRT s -> s -> s -> Double
 {-# INLINE getDist #-}
-getDist = _stateDistance . getSpace
+getDist = _stateDistance . _space
 
 getInterp :: RRT s -> s -> s -> Double -> s
 {-# INLINE getInterp #-}
-getInterp = _interpolate . getSpace
+getInterp = _interpolate . _space
 
 getNumStates :: RRT s -> Int
 getNumStates = length . _nodes
@@ -83,16 +79,22 @@ extendRRT rrt sample =
                        else getInterp rrt nearState sample $ _stepSize rrt / d
     in  if _valid rrt nearState newState
         then let newNode = Node newState near
-                 solution = if (_goalSatisfied $ _problem rrt) newState
+                 solution = if (_goalSatisfied $ _query rrt) newState
                             then Just newNode
                             else Nothing
-             in  RRT (_problem rrt) (_valid rrt) (_stepSize rrt) (newNode : _nodes rrt) solution
+             in  RRT { _space = _space rrt
+                     , _query = _query rrt
+                     , _valid = _valid rrt
+                     , _stepSize = _stepSize rrt
+                     , _nodes = newNode : _nodes rrt
+                     , _solution = solution
+                     }
         else rrt
 
-buildRRT :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> CMR.Rand PureMT (RRT s)
-buildRRT problem valid stepSize numIterations =
-    let start = _startState problem
-        beginRRT = RRT problem valid stepSize [Root start] Nothing
+buildRRT :: StateSpace s -> MotionPlanningQuery s -> MotionValidity s -> Double -> Int -> CMR.Rand PureMT (RRT s)
+buildRRT space query valid stepSize numIterations =
+    let start = _startState query
+        beginRRT = RRT space query valid stepSize [Root start] Nothing
     in  go beginRRT 0
     where
       go rrt iteration -- TODO try having rrt argument be (m rrt)?
@@ -101,7 +103,7 @@ buildRRT problem valid stepSize numIterations =
         | otherwise = do
           newRRT <- extendRRT rrt `fmap` sample
           go newRRT (iteration + 1)
-        where sample = _sampleUniform $ _stateSpace problem
+        where sample = _sampleUniform space
 
 getPathToGoal :: RRT s -> [s]
 getPathToGoal rrt =
@@ -111,17 +113,17 @@ getPathToGoal rrt =
   where go (Root s) path = s:path
         go (Node s p) path = go p $ s:path
 
-solveRRT :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> CMR.Rand PureMT [s]
-solveRRT problem motionValidity stepSize numIterations =
-  fmap getPathToGoal $ buildRRT problem motionValidity stepSize numIterations
+solveRRT :: StateSpace s -> MotionPlanningQuery s -> MotionValidity s -> Double -> Int -> CMR.Rand PureMT [s]
+solveRRT space query motionValidity stepSize numIterations =
+  fmap getPathToGoal $ buildRRT space query motionValidity stepSize numIterations
 
-buildRRTDefaultSeed :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> RRT s
-buildRRTDefaultSeed problem motionValidity stepSize numIterations =
-  CMR.evalRand (buildRRT problem motionValidity stepSize numIterations) (pureMT 1)
+buildRRTDefaultSeed :: StateSpace s -> MotionPlanningQuery s -> MotionValidity s -> Double -> Int -> RRT s
+buildRRTDefaultSeed space query motionValidity stepSize numIterations =
+  CMR.evalRand (buildRRT space query motionValidity stepSize numIterations) (pureMT 1)
 
-solveRRTDefaultSeed :: MotionPlanningProblem s -> MotionValidity s -> Double -> Int -> [s]
-solveRRTDefaultSeed problem motionValidity stepSize numIterations =
-  CMR.evalRand (solveRRT problem motionValidity stepSize numIterations) (pureMT 1)
+solveRRTDefaultSeed :: StateSpace s -> MotionPlanningQuery s -> MotionValidity s -> Double -> Int -> [s]
+solveRRTDefaultSeed space query motionValidity stepSize numIterations =
+  CMR.evalRand (solveRRT space query motionValidity stepSize numIterations) (pureMT 1)
 
 -- --------------------------------------------------
 -- -- Tests

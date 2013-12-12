@@ -1,6 +1,5 @@
 import Data.StateSpace
 import Data.Spaces.Point2DSpace
-import Data.MotionPlanningProblem
 import Planners.RRT
 
 data Circle2D = Circle2D
@@ -16,13 +15,12 @@ main = let minState = Point2D 0.0 0.0
            maxState = Point2D 1.0 1.0
            circleObs = Circle2D (Point2D 0.5 0.5) 0.25
            ss = makePoint2DSpace minState maxState
-           p = MotionPlanningProblem
-               { _stateSpace = ss
-               , _startState = minState
+           q = MotionPlanningQuery
+               { _startState = minState
                , _goalSatisfied = goalStateSatisfied ss 0.1 maxState
                }
            valid = discreteMotionValid ss (pointOutsideCircle circleObs) 0.002
-           rrt = buildRRTDefaultSeed p valid 0.01 5000
+           rrt = buildRRTDefaultSeed ss q valid 0.01 5000
            motionPlan = getPathToGoal rrt
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."

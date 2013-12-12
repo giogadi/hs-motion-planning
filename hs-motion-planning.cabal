@@ -33,6 +33,10 @@ executable RRT3DExample
   -- other-modules:
   build-depends: base ==4.6.0.1, random >=1.0 && <1.1, containers ==0.5.0.0, MonadRandom ==0.1.12, mersenne-random-pure64 ==0.2.0.4, QuickCheck ==2.6, fixed-list ==0.1.5
 
+executable RRG2DExample
+  main-is: Examples/RRG2DExample.hs
+  build-depends: base ==4.6.0.1, random >=1.0 && <1.1, containers ==0.5.0.0, MonadRandom ==0.1.12, mersenne-random-pure64 ==0.2.0.4, QuickCheck ==2.6, fixed-list ==0.1.5, fgl ==5.4.2.4, pqueue ==1.2.1
+
 -- Test-Suite RRTTest
 --   type: exitcode-stdio-1.0
 --   main-is: tests/RRTTest.hs

@@ -3,6 +3,8 @@ module Data.StateSpace
        , StateSampler
        , MotionValidity
        , discreteMotionValid
+       , MotionPlanningQuery(..)
+       , goalStateSatisfied
        , MotionCost
        ) where
 
@@ -28,5 +30,13 @@ discreteMotionValid ss f h s1 s2
                     samplePts = scanl1 (+) (replicate n (h / d))
                     innerValid = all f $ map (_interpolate ss s1 s2) samplePts
                 in  innerValid && f s2
+
+data MotionPlanningQuery s = MotionPlanningQuery
+                             { _startState     :: s
+                             , _goalSatisfied  :: s -> Bool
+                             }
+
+goalStateSatisfied :: StateSpace s -> Double -> s -> s -> Bool
+goalStateSatisfied ss tol goalState s = _stateDistanceSqrd ss s goalState <= tol*tol
 
 type MotionCost s c = s -> s -> c
