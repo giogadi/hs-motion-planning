@@ -1,6 +1,7 @@
 import Data.MotionPlanningProblem
 import Data.Spaces.Point2DSpace
-import Planners.RRT
+import Planners.PRM
+import Data.Monoid
 
 data Circle2D = Circle2D
   { _center :: Point2D
@@ -9,6 +10,9 @@ data Circle2D = Circle2D
 
 pointOutsideCircle :: Circle2D -> Point2D -> Bool
 pointOutsideCircle c p = stateDistanceSqrd p (_center c) > (_radius c)*(_radius c)
+
+pathLengthMotionCost :: StateSpace s -> MotionCost s (Sum Double)
+pathLengthMotionCost ss s1 s2 = Sum $ _stateDistance ss s1 s2
 
 main :: IO ()
 main = let minState = Point2D 0.0 0.0
@@ -20,10 +24,13 @@ main = let minState = Point2D 0.0 0.0
                , _goalSatisfied = goalStateSatisfied ss 0.1 maxState
                }
            valid = discreteMotionValid ss (pointOutsideCircle circleObs) 0.002
-           rrt = buildRRTDefaultSeed ss q valid 0.01 5000
-           motionPlan = getPathToGoal rrt
+           rrg = buildRRGDefaultSeed ss valid (pathLengthMotionCost ss) 0.05 0.1 1000 minState
+           -- rrg = buildKRRGDefaultSeed ss valid (pathLengthMotionCost ss) 0.05 1 300 minState
+           -- rrg = buildPRMStarDefaultSeed ss valid (pathLengthMotionCost ss) 0.1 300
+           motionPlan = solve rrg q
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."
-         putStrLn $ "Num states in tree: " ++ show (getNumStates rrt)
+         putStrLn $ "Plan cost: " ++ show (getSum $ pathCost (pathLengthMotionCost ss) motionPlan)
          putStrLn "Plan:"
          mapM_ print motionPlan
+         writeFile "/Users/luis/Desktop/rrg-test.txt" $ printEdges rrg

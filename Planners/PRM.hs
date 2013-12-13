@@ -11,7 +11,7 @@ module Planners.PRM
        ) where
 
 -- Motion Planning imports
-import Data.StateSpace
+import Data.MotionPlanningProblem
 
 -- Graph library imports
 import Data.Graph.Inductive hiding (dijkstra)
@@ -139,7 +139,6 @@ buildRRG space valid cost d r n s =
 
 buildPRMStar :: StateSpace s -> MotionValidity s -> MotionCost s c -> Double -> Int -> CMR.Rand PureMT (Roadmap s c)
 buildPRMStar space valid cost r n =
-  --let initialRoadmap = mkEmptyRoadmap space valid cost
   let initialRoadmap = mkInitialRoadmap space valid cost `fmap` _sampleUniform space
   in  iterateExpand (_sampleUniform space `const`) (withinRadiusStrategy r) n =<< initialRoadmap
 

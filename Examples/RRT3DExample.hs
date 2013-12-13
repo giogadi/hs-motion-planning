@@ -1,4 +1,4 @@
-import Data.StateSpace
+import Data.MotionPlanningProblem
 import Data.Spaces.RealVectorStateSpace (makeRealVectorStateSpace)
 import Planners.RRT
 

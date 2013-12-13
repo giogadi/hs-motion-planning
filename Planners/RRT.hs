@@ -11,7 +11,7 @@ module Planners.RRT
        ) where
 
 -- Moton planning imports
-import Data.StateSpace
+import Data.MotionPlanningProblem
 
 -- Standard imports
 import Data.Maybe (isJust)

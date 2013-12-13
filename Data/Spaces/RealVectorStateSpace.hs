@@ -5,7 +5,7 @@ module Data.Spaces.RealVectorStateSpace
 import qualified Data.FixedList as FL
 import Control.Applicative
 import Data.Foldable (sum)
-import qualified Data.StateSpace as SS
+import qualified Data.MotionPlanningProblem as MP
 import qualified Control.Monad.Random as CMR
 import Data.Traversable
 
@@ -43,13 +43,13 @@ interpolate s1 s2 d
                 in  s1 `addV` scaleV v d
 
 getUniformSampler :: FL.FixedList f =>
-                     f Double -> f Double -> SS.StateSampler (f Double)
+                     f Double -> f Double -> MP.StateSampler (f Double)
 getUniformSampler minState maxState = let bounds = pure (,) <*> minState <*> maxState
                                       in  sequenceA $ fmap CMR.getRandomR bounds
 
 makeRealVectorStateSpace :: FL.FixedList f =>
-                            f Double -> f Double -> SS.StateSpace (f Double)
-makeRealVectorStateSpace minState maxState = SS.StateSpace
+                            f Double -> f Double -> MP.StateSpace (f Double)
+makeRealVectorStateSpace minState maxState = MP.StateSpace
                                              stateDistance
                                              stateDistanceSqrd
                                              interpolate

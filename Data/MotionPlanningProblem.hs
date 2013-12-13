@@ -1,4 +1,4 @@
-module Data.StateSpace
+module Data.MotionPlanningProblem
        ( StateSpace(..)
        , StateSampler
        , MotionValidity
@@ -6,10 +6,12 @@ module Data.StateSpace
        , MotionPlanningQuery(..)
        , goalStateSatisfied
        , MotionCost
+       , pathCost
        ) where
 
 import qualified Control.Monad.Random as CMR
 import System.Random.Mersenne.Pure64 (PureMT)
+import Data.Monoid
 
 type StateSampler s = CMR.Rand PureMT s
 
@@ -40,3 +42,7 @@ goalStateSatisfied :: StateSpace s -> Double -> s -> s -> Bool
 goalStateSatisfied ss tol goalState s = _stateDistanceSqrd ss s goalState <= tol*tol
 
 type MotionCost s c = s -> s -> c
+
+pathCost :: (Monoid c) => MotionCost s c -> [s] -> c
+pathCost _ [] = mempty
+pathCost cost states@(_:ss) = mconcat $ zipWith cost states ss
