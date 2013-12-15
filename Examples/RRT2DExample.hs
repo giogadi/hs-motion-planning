@@ -1,6 +1,8 @@
 import Data.MotionPlanningProblem
 import Data.Spaces.Point2DSpace
 import Planners.RRT
+import qualified Control.Monad.Random as CMR
+import System.Random.Mersenne.Pure64 (pureMT)
 
 data Circle2D = Circle2D
   { _center :: Point2D
@@ -20,7 +22,7 @@ main = let minState = Point2D 0.0 0.0
                , _goalSatisfied = goalStateSatisfied ss 0.1 maxState
                }
            valid = discreteMotionValid ss (pointOutsideCircle circleObs) 0.002
-           rrt = buildRRTDefaultSeed ss q valid 0.01 5000
+           rrt = CMR.evalRand (buildRRT ss q valid 0.01 5000) (pureMT 1)
            motionPlan = getPathToGoal rrt
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."

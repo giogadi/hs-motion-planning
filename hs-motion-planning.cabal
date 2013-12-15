@@ -16,7 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Data.MotionPlanningProblem, Data.Spaces.RealVectorStateSpace, Planners.RRT, Planners.PRM
+  exposed-modules:     Data.MotionPlanningProblem, Data.Spaces.RealVectorStateSpace, Data.NearestNeighbors, Planners.RRT, Planners.PRM
   -- other-modules:
   -- other-extensions:
   build-depends:       base ==4.6.0.1, random >=1.0 && <1.1, containers ==0.5.0.0, MonadRandom ==0.1.12, mersenne-random-pure64 ==0.2.0.4, fixed-list ==0.1.5, fgl ==5.4.2.4, pqueue ==1.2.1

@@ -1,5 +1,6 @@
 module Data.MotionPlanningProblem
        ( StateSpace(..)
+       , DistFn
        , StateSampler
        , MotionValidity
        , discreteMotionValid
@@ -13,11 +14,12 @@ import qualified Control.Monad.Random as CMR
 import System.Random.Mersenne.Pure64 (PureMT)
 import Data.Monoid
 
+type DistFn s = s -> s -> Double
 type StateSampler s = CMR.Rand PureMT s
 
 data StateSpace s = StateSpace
-                    { _stateDistance     :: s -> s -> Double
-                    , _stateDistanceSqrd :: s -> s -> Double
+                    { _stateDistance     :: DistFn s
+                    , _stateDistanceSqrd :: DistFn s
                     , _interpolate       :: s -> s -> Double -> s
                     , _sampleUniform     :: StateSampler s
                     }
