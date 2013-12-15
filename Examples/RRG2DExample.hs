@@ -2,6 +2,8 @@ import Data.MotionPlanningProblem
 import Data.Spaces.Point2DSpace
 import Planners.PRM
 import Data.Monoid
+import qualified Control.Monad.Random as CMR
+import System.Random.Mersenne.Pure64 (pureMT)
 
 data Circle2D = Circle2D
   { _center :: Point2D
@@ -21,10 +23,10 @@ main = let minState = Point2D 0.0 0.0
            ss = makePoint2DSpace minState maxState
            q = MotionPlanningQuery
                { _startState = minState
-               , _goalSatisfied = goalStateSatisfied ss 0.1 maxState
+               , _goalSatisfied = goalStateSatisfied ss 0.3 maxState
                }
            valid = discreteMotionValid ss (pointOutsideCircle circleObs) 0.002
-           rrg = buildRRGDefaultSeed ss valid (pathLengthMotionCost ss) 0.05 0.1 1000 minState
+           rrg = CMR.evalRand (buildRRG ss valid (pathLengthMotionCost ss) 0.05 0.1 500 minState) (pureMT 1)
            -- rrg = buildKRRGDefaultSeed ss valid (pathLengthMotionCost ss) 0.05 1 300 minState
            -- rrg = buildPRMStarDefaultSeed ss valid (pathLengthMotionCost ss) 0.1 300
            motionPlan = solve rrg q
