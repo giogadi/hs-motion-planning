@@ -1,6 +1,6 @@
 module Data.Spaces.Point2DSpace
        ( Point2D(..)
-       , makePoint2DSpace
+       , mkPoint2DSpace
        , stateDistance
        , stateDistanceSqrd
        , interpolate
@@ -39,9 +39,9 @@ getUniformSampler (Point2D xmin ymin) (Point2D xmax ymax) =
     (CMR.getRandomR (xmin, xmax))
     (CMR.getRandomR (ymin, ymax))
 
-makePoint2DSpace :: Point2D -> Point2D -> MP.StateSpace Point2D
-makePoint2DSpace pmin pmax = MP.StateSpace
-                             stateDistance
-                             stateDistanceSqrd
-                             interpolate
-                             (getUniformSampler pmin pmax)
+mkPoint2DSpace :: Point2D -> Point2D -> MP.StateSpace Point2D
+mkPoint2DSpace pmin pmax = MP.StateSpace
+                           stateDistance
+                           stateDistanceSqrd
+                           interpolate
+                           (getUniformSampler pmin pmax)

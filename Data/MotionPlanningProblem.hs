@@ -8,10 +8,11 @@ module Data.MotionPlanningProblem
        , goalStateSatisfied
        , MotionCost
        , pathCost
+       , evalDefaultSeed
        ) where
 
 import qualified Control.Monad.Random as CMR
-import System.Random.Mersenne.Pure64 (PureMT)
+import System.Random.Mersenne.Pure64 (PureMT, pureMT)
 import Data.Monoid
 
 type DistFn s = s -> s -> Double
@@ -48,3 +49,6 @@ type MotionCost s c = s -> s -> c
 pathCost :: (Monoid c) => MotionCost s c -> [s] -> c
 pathCost _ [] = mempty
 pathCost cost states@(_:ss) = mconcat $ zipWith cost states ss
+
+evalDefaultSeed :: CMR.Rand PureMT s -> s
+evalDefaultSeed s = CMR.evalRand s (pureMT 1)

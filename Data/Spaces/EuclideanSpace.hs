@@ -1,5 +1,5 @@
-module Data.Spaces.RealVectorStateSpace
-       ( makeRealVectorStateSpace
+module Data.Spaces.EuclideanSpace
+       ( mkEuclideanSpace
        ) where
 
 import qualified Data.FixedList as FL
@@ -38,7 +38,7 @@ stateDistanceSqrd s1 s2 = let dv = s2 `minusV` s1
 interpolate :: (FL.FixedList f) => f Double -> f Double -> Double -> f Double
 interpolate s1 s2 d
   | d < 0.0 || d > (1.0 + 1e-8) =
-    error $ "Data.RealVectorStateSpace.interpolate's parameter must be in [0,1]" ++ show d
+    error $ "Data.EuclideanSpace.interpolate's parameter must be in [0,1]" ++ show d
   | otherwise = let v = s2 `minusV` s1
                 in  s1 `addV` scaleV v d
 
@@ -47,10 +47,10 @@ getUniformSampler :: FL.FixedList f =>
 getUniformSampler minState maxState = let bounds = pure (,) <*> minState <*> maxState
                                       in  sequenceA $ fmap CMR.getRandomR bounds
 
-makeRealVectorStateSpace :: FL.FixedList f =>
-                            f Double -> f Double -> MP.StateSpace (f Double)
-makeRealVectorStateSpace minState maxState = MP.StateSpace
-                                             stateDistance
-                                             stateDistanceSqrd
-                                             interpolate
-                                             (getUniformSampler minState maxState)
+mkEuclideanSpace :: FL.FixedList f =>
+                    f Double -> f Double -> MP.StateSpace (f Double)
+mkEuclideanSpace minState maxState = MP.StateSpace
+                                     stateDistance
+                                     stateDistanceSqrd
+                                     interpolate
+                                     (getUniformSampler minState maxState)
