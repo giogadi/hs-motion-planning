@@ -13,7 +13,6 @@ import qualified Data.PQueue.Prio.Min as PQ
 import Data.List (find)
 import Data.Maybe (fromJust)
 import Data.Monoid
-import Debug.Trace
 
 -- Internal routine implementing Dijkstra's shortest paths
 -- algorithm. Deemed internal because it needs to be kickstarted with

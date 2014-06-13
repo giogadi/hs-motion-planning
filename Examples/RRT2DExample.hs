@@ -20,7 +20,7 @@ main = let minState = Point2D 0.0 0.0
                , _goalSatisfied = goalStateSatisfied ss 0.1 maxState
                }
            valid = discreteMotionValid ss (pointOutsideCircle circleObs) 0.002
-           rrt = evalDefaultSeed $ buildRRT ss q valid 0.01 5000
+           rrt = buildRRTDefault ss q valid 0.01 5000
            motionPlan = getPathToGoal rrt
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."

@@ -19,16 +19,18 @@ import Data.Graph.Inductive hiding (dijkstra)
 import Data.Graph.Dijkstra
 
 -- Standard imports
-import Data.List (sortBy, minimumBy, find, intercalate)
+import Data.List (sortBy, find, intercalate)
 import Data.Tuple (swap)
 import Data.Maybe (fromJust)
 import Data.Function (on)
 import Data.Monoid
-import System.Random.Mersenne.Pure64 (PureMT, pureMT)
+import System.Random.Mersenne.Pure64 (PureMT)
 import qualified Control.Monad.Random as CMR
 
 -- Debug import
 import Debug.Trace
+
+type RoadmapNN n s = n s Node
 
 -- A roadmap is a graph with state type s and cost space c
 data Roadmap s c n = Roadmap
@@ -36,10 +38,8 @@ data Roadmap s c n = Roadmap
                      , _valid :: MotionValidity s
                      , _cost  :: MotionCost s c
                      , _graph :: Gr s c
-                     , _nn    :: n
+                     , _nn    :: RoadmapNN n s
                      }
-
--- type GrNN n s = n s Node
 
 distSqrd :: Roadmap s c n -> s -> s -> Double
 distSqrd = _stateDistanceSqrd . _space
@@ -60,7 +60,7 @@ type ConnectStrategy s c n = Roadmap s c n -> s -> [LNode s]
 -- Try to connect a state to a roadmap using a given connection
 -- strategy. If no collision-free connection can be made to the new
 -- state, the state is not added to the roadmap.
-expandRoadmap :: NN n => Roadmap s c (n s Node) -> ConnectStrategy s c (n s Node) -> s -> Roadmap s c (n s Node)
+expandRoadmap :: NN n => Roadmap s c n -> ConnectStrategy s c n -> s -> Roadmap s c n
 expandRoadmap rm cs newState =
   let nbrs = cs rm newState
       validNbrs = filter (flip (_valid rm) newState . snd) nbrs
@@ -77,12 +77,12 @@ expandRoadmap rm cs newState =
 
 -- A strategy for generating all states in a roadmap within a given
 -- radius of a given state.
-withinRadiusStrategy :: NN n => Double -> ConnectStrategy s c (n s Node)
+withinRadiusStrategy :: NN n => Double -> ConnectStrategy s c n
 withinRadiusStrategy r rm s = map swap $ nearestR (_nn rm) r s
 
 -- A strategy for generating the k nearest states to the given state
 -- in a roadmap
-kNearestStrategy :: NN n => Int -> ConnectStrategy s c (n s Node)
+kNearestStrategy :: NN n => Int -> ConnectStrategy s c n
 kNearestStrategy k rm s = map swap $ nearestK (_nn rm) k s
 
 -- Strategy used to generate new states to add to the roadmap
@@ -91,7 +91,7 @@ type SamplingStrategy s c n = Roadmap s c n -> StateSampler s
 -- Given a roadmap, generate a random state that's at most d units
 -- away from the nearest state in the roadmap. This sampling strategy
 -- creates a Voronoi-biased sampling.
-voronoiSamplingStrategy :: NN n => Double -> SamplingStrategy s c (n s Node)
+voronoiSamplingStrategy :: NN n => Double -> SamplingStrategy s c n
 voronoiSamplingStrategy stepSize rm
   | (isEmpty . _graph) rm = error "Voronoi sampling requires at least one state in the roadmap!"
   | otherwise = do
@@ -103,11 +103,11 @@ voronoiSamplingStrategy stepSize rm
              else interp rm nearState sampleState (stepSize / d)
 
 sampleAndExpand :: NN n =>
-  SamplingStrategy s c (n s Node) -> ConnectStrategy s c (n s Node) -> Roadmap s c (n s Node) -> CMR.Rand PureMT (Roadmap s c (n s Node))
+  SamplingStrategy s c n -> ConnectStrategy s c n -> Roadmap s c n -> CMR.Rand PureMT (Roadmap s c n)
 sampleAndExpand ss cs rm = fmap (expandRoadmap rm cs) (ss rm)
 
 iterateExpand :: NN n =>
-  SamplingStrategy s c (n s Node) -> ConnectStrategy s c (n s Node) -> Int -> Roadmap s c (n s Node) -> CMR.Rand PureMT (Roadmap s c (n s Node))
+  SamplingStrategy s c n -> ConnectStrategy s c n -> Int -> Roadmap s c n -> CMR.Rand PureMT (Roadmap s c n)
 iterateExpand ss cs n rm = go (return rm) 0
   where go randomRM i
           | i >= n = randomRM
@@ -115,7 +115,7 @@ iterateExpand ss cs n rm = go (return rm) 0
             roadmap <- randomRM
             go (sampleAndExpand ss cs roadmap) (i+1)
 
-mkInitialRoadmap :: NN n => StateSpace s -> MotionValidity s -> MotionCost s c -> n s Node -> s -> Roadmap s c (n s Node)
+mkInitialRoadmap :: NN n => StateSpace s -> MotionValidity s -> MotionCost s c -> RoadmapNN n s -> s -> Roadmap s c n
 mkInitialRoadmap space valid cost nn s = Roadmap { _space = space
                                                  , _valid = valid
                                                  , _cost  = cost
@@ -126,7 +126,7 @@ mkInitialRoadmap space valid cost nn s = Roadmap { _space = space
 -- Performs n iterations of roadmap expansion using a voronoi sampling
 -- strategy and k-nearest neighbor connection strategy
 buildKRRGWithNN :: NN n =>
-  StateSpace s -> MotionValidity s -> MotionCost s c -> n s Node -> Double -> Int -> Int -> s -> CMR.Rand PureMT (Roadmap s c (n s Node))
+  StateSpace s -> MotionValidity s -> MotionCost s c -> RoadmapNN n s -> Double -> Int -> Int -> s -> CMR.Rand PureMT (Roadmap s c n)
 buildKRRGWithNN space valid cost nn d k n s =
   let initialRoadmap = mkInitialRoadmap space valid cost nn s
   in  iterateExpand (voronoiSamplingStrategy d) (kNearestStrategy k) n $ initialRoadmap
@@ -135,18 +135,18 @@ buildKRRGWithNN space valid cost nn d k n s =
 -- strategy and connecting neighbors within a given radius of each new
 -- node
 buildRRGWithNN :: NN n =>
-  StateSpace s -> MotionValidity s -> MotionCost s c -> n s Node -> Double -> Double -> Int -> s -> CMR.Rand PureMT (Roadmap s c (n s Node))
+  StateSpace s -> MotionValidity s -> MotionCost s c -> RoadmapNN n s -> Double -> Double -> Int -> s -> CMR.Rand PureMT (Roadmap s c n)
 buildRRGWithNN space valid cost nn d r n s =
   let initialRoadmap = mkInitialRoadmap space valid cost nn s
   in  iterateExpand (voronoiSamplingStrategy d) (withinRadiusStrategy r) n $ initialRoadmap
 
 buildPRMStarWithNN :: NN n =>
-  StateSpace s -> MotionValidity s -> MotionCost s c -> n s Node -> Double -> Int -> CMR.Rand PureMT (Roadmap s c (n s Node))
+  StateSpace s -> MotionValidity s -> MotionCost s c -> RoadmapNN n s -> Double -> Int -> CMR.Rand PureMT (Roadmap s c n)
 buildPRMStarWithNN space valid cost nn r n =
   let initialRoadmap = mkInitialRoadmap space valid cost nn `fmap` _sampleUniform space
   in  iterateExpand (_sampleUniform space `const`) (withinRadiusStrategy r) n =<< initialRoadmap
 
-buildRRG :: StateSpace s -> MotionValidity s -> MotionCost s c -> Double -> Double -> Int -> s -> CMR.Rand PureMT (Roadmap s c (LinearNN s Node))
+buildRRG :: StateSpace s -> MotionValidity s -> MotionCost s c -> Double -> Double -> Int -> s -> CMR.Rand PureMT (Roadmap s c LinearNN)
 buildRRG space valid cost = buildRRGWithNN space valid cost (mkLinearNN space)
 
 -- buildPRMStarDefaultSeed :: StateSpace s -> MotionValidity s -> MotionCost s c -> Double -> Int -> Roadmap s c
@@ -170,7 +170,7 @@ buildRRG space valid cost = buildRRGWithNN space valid cost (mkLinearNN space)
 -- with a collision-free path
 --
 -- (b) The start state is not connected to a goal state on the roadmap
-solve :: (Ord c, Monoid c, NN n) => Roadmap s c (n s Node) -> MotionPlanningQuery s -> [s]
+solve :: (Ord c, Monoid c, NN n) => Roadmap s c n -> MotionPlanningQuery s -> [s]
 solve rm q = let sortedLNodes = sortBy near $ labNodes $ _graph rm
                  nearLNode    = find (_valid rm (_startState q) . snd) sortedLNodes
              in

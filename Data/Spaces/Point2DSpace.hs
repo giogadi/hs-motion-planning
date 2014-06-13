@@ -6,14 +6,22 @@ module Data.Spaces.Point2DSpace
        , interpolate
        ) where
 
-import qualified Control.Monad.Random as CMR
-import Control.Monad (liftM2)
 import qualified Data.MotionPlanningProblem as MP
 
-data Point2D = Point2D !Double !Double
+import qualified Control.Monad.Random as CMR
+import Control.Monad (liftM2)
+import Control.DeepSeq
+
+data Point2D = Point2D
+               {-# UNPACK #-} !Double
+               {-# UNPACK #-} !Double
 
 instance Show Point2D where
     show (Point2D x y) = show x ++ " " ++ show y
+
+-- For Criterion profiling
+instance NFData Point2D where
+  rnf (Point2D x y) = seq x $ seq y ()
 
 stateDistanceSqrd :: Point2D -> Point2D -> Double
 {-# INLINE stateDistanceSqrd #-}

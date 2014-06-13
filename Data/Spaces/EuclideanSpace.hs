@@ -24,10 +24,6 @@ v1 `dotV` v2 = Data.Foldable.sum $ pure (*) <*> v1 <*> v2
 lengthV :: (FL.FixedList f) => f Double -> Double
 lengthV v = sqrt $ v `dotV` v
 
-normalizeV :: (FL.FixedList f) => f Double -> f Double
-normalizeV v = let scale = 1.0 / lengthV v
-               in  scaleV v scale
-
 stateDistance :: (FL.FixedList f) => f Double -> f Double -> Double
 stateDistance s1 s2 = lengthV $ s2 `minusV` s1
 

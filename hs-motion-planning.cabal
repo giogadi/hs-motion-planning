@@ -3,60 +3,90 @@
 
 name:                hs-motion-planning
 version:             0.1.0.0
--- synopsis:
+synopsis:            A motion planning library written in Haskell
 -- description:
--- license:
+homepage:            https://github.com/giogadi/hs-motion-planning
+license:             MIT
 license-file:        LICENSE
 author:              Luis G. Torres
 maintainer:          lgtorres42@gmail.com
 -- copyright:
--- category:
+category:            AI
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Data.MotionPlanningProblem, Data.Spaces.EuclideanSpace, Data.NearestNeighbors, Planners.RRT, Planners.PRM
+  exposed-modules:     Data.MotionPlanningProblem,
+                       Data.Spaces.EuclideanSpace,
+                       Data.Spaces.Point2DSpace,
+                       Data.NearestNeighbors,
+                       Planners.RRT,
+                       Planners.PRM
   -- other-modules:
   -- other-extensions:
+  ghc-options:         -Wall -O3 -rtsopts -fprof-auto
   build-depends:       base >=4.6.0.1,
                        random >=1.0 && <1.1,
-                       containers ==0.5.0.0,
-                       MonadRandom ==0.1.12,
-                       mersenne-random-pure64 ==0.2.0.4,
+                       containers >=0.5.0.0 && <0.6,
+                       MonadRandom >=0.1.12 && <0.2,
+                       mersenne-random-pure64 >=0.2.0.4 && <0.3,
                        fixed-list ==0.1.5,
-                       fgl ==5.4.2.4,
-                       pqueue ==1.2.1
+                       fgl >=5.4.2.4 && <5.6,
+                       pqueue >=1.2.1 && <1.3,
+                       deepseq >=1.1.0.0
   -- hs-source-dirs:
   default-language:    Haskell2010
 
 executable RRT2DExample
   main-is: Examples/RRT2DExample.hs
   -- other-modules:
-  build-depends: base >=4.6.0.1,
-                 random >=1.0 && <1.1,
-                 MonadRandom ==0.1.12,
-                 mersenne-random-pure64 ==0.2.0.4
+  ghc-options:         -Wall -O3
+  build-depends:       base >=4.6.0.1,
+                       random >=1.0 && <1.1,
+                       MonadRandom >=0.1.12 && <0.2,
+                       mersenne-random-pure64 >=0.2.0.4 && <0.3,
+                       deepseq >=1.1.0.0
+  default-language:    Haskell2010
 
 executable RRT3DExample
   main-is: Examples/RRT3DExample.hs
   -- other-modules:
-  build-depends: base >=4.6.0.1,
-                 random >=1.0 && <1.1,
-                 MonadRandom ==0.1.12,
-                 mersenne-random-pure64 ==0.2.0.4,
-                 fixed-list ==0.1.5
+  ghc-options:         -Wall -O3
+  build-depends:       base >=4.6.0.1,
+                       random >=1.0 && <1.1,
+                       MonadRandom >=0.1.12 && <0.2,
+                       mersenne-random-pure64 >=0.2.0.4 && <0.3,
+                       fixed-list ==0.1.5,
+                       deepseq >=1.1.0.0
+  default-language:    Haskell2010
 
 executable RRG2DExample
   main-is: Examples/RRG2DExample.hs
-  build-depends: base >=4.6.0.1,
-                 random >=1.0 && <1.1,
-                 containers ==0.5.0.0,
-                 MonadRandom ==0.1.12,
-                 mersenne-random-pure64 ==0.2.0.4,
-                 fixed-list ==0.1.5,
-                 fgl ==5.4.2.4,
-                 pqueue ==1.2.1
+  ghc-options:         -Wall -O3
+  build-depends:       base >=4.6.0.1,
+                       random >=1.0 && <1.1,
+                       containers >=0.5.0.0 && <0.6,
+                       MonadRandom >=0.1.12 && <0.2,
+                       mersenne-random-pure64 >=0.2.0.4 && <0.3,
+                       fixed-list ==0.1.5,
+                       fgl ==5.4.2.4,
+                       pqueue >=1.2.1 && <1.3,
+                       deepseq >=1.1.0.0
+  default-language:    Haskell2010
+
+benchmark RRTBenchmark
+  main-is:             Benchmarks/RRTBenchmark.hs
+  type:                exitcode-stdio-1.0
+  ghc-options:         -Wall -O3
+                       -- -rtsopts -fprof-auto
+  build-depends:       base >=4.6.0.1,
+                       random >=1.0 && <1.1,
+                       MonadRandom >=0.1.12 && <0.2,
+                       mersenne-random-pure64 >=0.2.0.4 && <0.3,
+                       criterion >=0.8.1.0 && <0.9,
+                       deepseq >=1.1.0.0
+  default-language:    Haskell2010
 
 -- Test-Suite RRTTest
 --   type: exitcode-stdio-1.0
