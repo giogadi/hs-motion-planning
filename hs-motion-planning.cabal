@@ -21,8 +21,10 @@ library
                        Data.Spaces.EuclideanSpace,
                        Data.Spaces.Point2DSpace,
                        Data.NearestNeighbors,
-                       Planners.RRT,
-                       Planners.PRM
+                       Data.Trees.KdTree,
+                       Data.Trees.DynamicKdTree,
+                       Planners.RRT
+                       -- Planners.PRM
   -- other-modules:
   -- other-extensions:
   ghc-options:         -Wall -O3 -rtsopts -fprof-auto
@@ -34,7 +36,8 @@ library
                        fixed-list ==0.1.5,
                        fgl >=5.4.2.4 && <5.6,
                        pqueue >=1.2.1 && <1.3,
-                       deepseq >=1.1.0.0
+                       deepseq >=1.1.0.0,
+                       QuickCheck >= 2.7.6 && <2.8
   -- hs-source-dirs:
   default-language:    Haskell2010
 
@@ -46,7 +49,20 @@ executable RRT2DExample
                        random >=1.0 && <1.1,
                        MonadRandom >=0.1.12 && <0.2,
                        mersenne-random-pure64 >=0.2.0.4 && <0.3,
-                       deepseq >=1.1.0.0
+                       deepseq >=1.1.0.0,
+                       QuickCheck >= 2.7.6 && <2.8
+  default-language:    Haskell2010
+
+executable RRT2DKDTExample
+  main-is: Examples/RRT2DKDTExample.hs
+  -- other-modules:
+  ghc-options:         -Wall -O3
+  build-depends:       base >=4.6.0.1,
+                       random >=1.0 && <1.1,
+                       MonadRandom >=0.1.12 && <0.2,
+                       mersenne-random-pure64 >=0.2.0.4 && <0.3,
+                       deepseq >=1.1.0.0,
+                       QuickCheck >= 2.7.6 && <2.8
   default-language:    Haskell2010
 
 executable RRT3DExample
