@@ -31,62 +31,90 @@
 
 -- Modifications made by Luis G. Torres.
 
+{-# LANGUAGE DeriveGeneric #-}
+
 module Data.Trees.KdTree
        ( EuclideanSpace (..)
        , compareDistance
        , KdTree
-       , fromList
+       , buildKdTree
        , toList
        , nearestNeighbor
        , nearNeighbors
        , kNearestNeighbors
        , allSubtreesAreValid
        , mk2DEuclideanSpace
+       , Point2d (..)
        ) where
 
-import Data.Maybe
+import Control.DeepSeq
+import Control.DeepSeq.Generics (genericRnf)
+import GHC.Generics
 
+import Data.Function
 import qualified Data.List as L
+import Data.Maybe
+import qualified Data.Set as S
+import qualified Data.Vector as V
 import Test.QuickCheck
 
 data EuclideanSpace p = EuclideanSpace
                         { _dimension :: Int
                         , _coord     :: Int -> p -> Double
                         , _dist2     :: p -> p -> Double
-                        }
+                        } deriving Generic
+instance NFData p => NFData (EuclideanSpace p) where rnf = genericRnf
 
 compareDistance :: EuclideanSpace p -> p -> p -> p -> Ordering
 compareDistance s p a b = (_dist2 s) p a `compare` (_dist2 s) p b
 
+-- TODO - might not even need to store kdAxis
 data Tree p d = TreeNode { kdLeft :: Tree p d,
                            kdPoint :: (p, d),
                            kdRight :: Tree p d,
                            kdAxis :: Int }
                 | TreeEmpty
+                deriving Generic
+instance (NFData p, NFData d) => NFData (Tree p d) where rnf = genericRnf
 
-data KdTree p d = KdTree (EuclideanSpace p) (Tree p d)
+data KdTree p d = KdTree (EuclideanSpace p) (Tree p d) deriving Generic
+instance (NFData p, NFData d) => NFData (KdTree p d) where rnf = genericRnf
 
-fromList :: EuclideanSpace p -> [(p, d)] -> KdTree p d
-fromList s points = KdTree s $ fromListWithDepth s points 0
+buildTree :: EuclideanSpace p -> [V.Vector (p, d)] -> Int -> Tree p d
+buildTree s sortedByAxis axis
+ | n == 0 = TreeEmpty
+ | otherwise = let medianIx = n `div` (2 :: Int)
+                   median = (sortedByAxis !! axis) V.! medianIx
+                   split = _coord s axis $ fst median
+                   partitionVec vec vAxis =
+                     if vAxis == axis
+                     then let (left, medAndRight) = V.splitAt medianIx vec
+                          in  (left, V.tail medAndRight)
+                     else let (left, medAndRight) = V.partition ((< split) . _coord s axis . fst) vec
+                          in  case V.findIndex ((== split) . _coord s axis . fst) medAndRight of
+                                Just ix -> let (l, r) = V.splitAt ix medAndRight
+                                           in  (left, l V.++ V.tail r)
+                                Nothing -> error "we done fucked up yo"
+                   (leftPoints, rightPoints) = unzip $ zipWith partitionVec sortedByAxis [0..]
+                   nextAxis = (axis + 1) `mod` _dimension s
+               in  TreeNode
+                   { kdLeft = (buildTree s leftPoints nextAxis)
+                   , kdPoint = median
+                   , kdRight = (buildTree s rightPoints nextAxis)
+                   , kdAxis = nextAxis
+                   }
+  where n = V.length $ head sortedByAxis
 
--- |fromListWithDepth selects an axis based on depth so that the axis cycles
--- through all valid values.
-fromListWithDepth :: EuclideanSpace p -> [(p, d)] -> Int -> Tree p d
-fromListWithDepth _ [] _ = TreeEmpty
-fromListWithDepth s points depth = node
-    where axis = depth `mod` _dimension s
-
-          -- Sort point list and choose median as pivot element
-          sortedPoints =
-              L.sortBy (\(a,_) (b,_) -> (_coord s) axis a `compare` (_coord s) axis b) points
-          medianIndex = length sortedPoints `div` 2
-
-          -- Create node and construct subtrees
-          -- TODO: This can be done faster
-          node = TreeNode { kdLeft = fromListWithDepth s (take medianIndex sortedPoints) (depth+1),
-                            kdPoint = sortedPoints !! medianIndex,
-                            kdRight = fromListWithDepth s (drop (medianIndex+1) sortedPoints) (depth+1),
-                            kdAxis = axis }
+buildKdTree :: EuclideanSpace p -> [(p, d)] -> KdTree p d
+buildKdTree _ [] = error "Who wants an empty KdTree anyway?"
+buildKdTree s ps = let sortByAxis points a = L.sortBy (compare `on` (_coord s a . fst)) points
+                       sortedByAxis = map (V.fromList . sortByAxis ps) [0 .. (_dimension s - 1)]
+                       pointToList p = zipWith (_coord s) [0 .. (_dimension s - 1)] (repeat p)
+                       coordLists = L.transpose $ map (pointToList . fst) ps
+                       uniqueCoords = map S.toList $ map S.fromList coordLists
+                   in  if all ((== length ps) . length) uniqueCoords
+                       then KdTree s (buildTree s sortedByAxis 0)
+                       else error $ show $ map length uniqueCoords ++ [length ps]
 
 -- TODO: just make KdTree foldable I guess
 toListInternal :: Tree p d -> [(p, d)]
@@ -175,16 +203,11 @@ kNearestNeighbors tree k probe = nearest : kNearestNeighbors tree' (k-1) probe
 
 -- |remove t p removes the point p from t.
 remove :: (Eq p) => KdTree p d -> p -> KdTree p d
-remove (KdTree s t) pKill = KdTree s $ remove' t
- where remove' TreeEmpty = TreeEmpty
-       remove' (TreeNode l (p, d) r axis) =
-         if p == pKill
-           then fromListWithDepth s (toListInternal l ++ toListInternal r) axis
-           else if (_coord s) axis pKill <= (_coord s) axis p
-                then TreeNode (remove' l) (p, d) r axis
-                else TreeNode l (p, d) (remove' r) axis
+remove t@(KdTree s _) pKill = let ps = toList t
+                              in  buildKdTree s $ filter ((/= pKill) . fst) ps
 
-data Point2d = Point2d Double Double deriving (Show, Eq)
+data Point2d = Point2d Double Double deriving (Show, Eq, Generic)
+instance NFData Point2d where rnf = genericRnf
 
 mk2DEuclideanSpace :: EuclideanSpace Point2d
 mk2DEuclideanSpace = EuclideanSpace
