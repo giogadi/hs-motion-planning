@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Data.Trees.DynamicKdTree
        ( DkdTree
        , KDT.EuclideanSpace (..)
@@ -9,6 +11,8 @@ module Data.Trees.DynamicKdTree
        , insert
        , size
        , toList
+       , batchInsert
+       -- Begin Tests
        , checkLogNTrees
        , checkTreeSizesPowerOf2
        , checkNumElements
@@ -22,6 +26,10 @@ module Data.Trees.DynamicKdTree
 import Data.Bits
 import Data.List hiding (insert)
 import Data.Maybe
+
+import Control.DeepSeq
+import Control.DeepSeq.Generics (genericRnf)
+import GHC.Generics
 import Test.QuickCheck hiding ((.&.))
 
 import qualified Data.Trees.KdTree as KDT
@@ -30,14 +38,15 @@ data DkdTree p d = DkdTree
                   { _trees    :: [KDT.KdTree p d]
                   , _space    :: KDT.EuclideanSpace p
                   , _numNodes :: Int
-                  }
+                  } deriving Generic
+instance (NFData p, NFData d) => NFData (DkdTree p d) where rnf = genericRnf
 
 -- TODO remove this
 emptyDkdTree :: KDT.EuclideanSpace p -> DkdTree p d
 emptyDkdTree s = DkdTree [] s 0
 
 singleton :: KDT.EuclideanSpace p -> (p, d) -> DkdTree p d
-singleton s (p, d) = DkdTree [KDT.fromList s [(p, d)]] s 1
+singleton s (p, d) = DkdTree [KDT.buildKdTree s [(p, d)]] s 1
 
 nearestNeighbor :: DkdTree p d -> p -> Maybe (p, d)
 nearestNeighbor (DkdTree ts s _) probe =
@@ -51,7 +60,7 @@ insert (DkdTree trees s n) p =
   let bitList = map (((.&.) 1) . (n `shiftR`)) [0..]
       (onesPairs, theRestPairs) = span ((== 1) . fst) $ zip bitList trees
       ((_, ones), (_, theRest)) = (unzip onesPairs, unzip theRestPairs)
-      newTree = KDT.fromList s $ p : concatMap KDT.toList ones
+      newTree = KDT.buildKdTree s $ p : concatMap KDT.toList ones
   in  DkdTree (newTree : theRest) s $ n + 1
 
 kNearestNeighbors :: Eq p => DkdTree p d -> Int -> p -> [(p, d)]
@@ -71,6 +80,9 @@ size (DkdTree _ _ n) = n
 
 toList :: DkdTree p d -> [(p, d)]
 toList (DkdTree trees _ _) = concatMap KDT.toList trees
+
+batchInsert :: DkdTree p d -> [(p, d)] -> DkdTree p d
+batchInsert t =  foldl' insert t
 
 --------------------------------------------------------------------------------
 -- Tests
@@ -95,7 +107,7 @@ checkNumElements s ps =
 
 checkNearestEqualToBatch :: Eq p => KDT.EuclideanSpace p -> ([p], p) -> Bool
 checkNearestEqualToBatch s (ps, query) =
-  let kdt = KDT.fromList s $ testElements ps
+  let kdt = KDT.buildKdTree s $ testElements ps
       kdtAnswer = KDT.nearestNeighbor kdt query
       dkdt = foldl' insert (emptyDkdTree s) $ testElements ps
       dkdtAnswer = nearestNeighbor dkdt query
@@ -104,7 +116,7 @@ checkNearestEqualToBatch s (ps, query) =
 checkKNearestEqualToBatch :: Eq p => KDT.EuclideanSpace p -> ([p], p) -> Bool
 checkKNearestEqualToBatch s (ps, query) =
   let k = 10 -- TODO make this quick-checked and bounded by something reasonable
-      kdt = KDT.fromList s $ testElements ps
+      kdt = KDT.buildKdTree s $ testElements ps
       kdtAnswer = KDT.kNearestNeighbors kdt k query
       dkdt = foldl' insert (emptyDkdTree s) $ testElements ps
       dkdtAnswer = kNearestNeighbors dkdt k query
@@ -123,6 +135,6 @@ checkEqualToLinear s (ps, query) =
 
 checkKNearestSorted :: Eq p => KDT.EuclideanSpace p -> ([p], p) -> Bool
 checkKNearestSorted s (ps, query) =
-  let kdt = KDT.fromList s $ testElements ps
+  let kdt = KDT.buildKdTree s $ testElements ps
       kNearestDists = map (KDT._dist2 s query . fst) $ KDT.kNearestNeighbors kdt (length ps) query
   in  kNearestDists == sort kNearestDists
