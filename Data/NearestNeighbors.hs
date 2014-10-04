@@ -40,7 +40,7 @@ instance NN LinearNN where
             | d < dBest = (x, d)
             | otherwise = b
             where d = dist k $ fst x
-  nearest (LinearNN _ []) _ = error "LinearNN.nearest was called on an structure!"
+  nearest (LinearNN _ []) _ = error "LinearNN.nearest was called on an empty structure!"
 
   nearestK (LinearNN dist elems) k q = take k $ sortBy near elems
     where near = compare `on` (dist q . fst)
