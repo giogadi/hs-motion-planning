@@ -42,7 +42,6 @@ module Data.Trees.KdTree
        , nearestNeighbor
        , nearNeighbors
        , kNearestNeighbors
-       , allSubtreesAreValid
        , mk2DEuclideanSpace
        , Point2d (..)
        ) where
@@ -109,48 +108,33 @@ buildKdTree :: EuclideanSpace p -> [(p, d)] -> KdTree p d
 buildKdTree _ [] = error "Who wants an empty KdTree anyway?"
 buildKdTree s ps = let sortByAxis points a = L.sortBy (compare `on` (_coord s a . fst)) points
                        sortedByAxis = map (V.fromList . sortByAxis ps) [0 .. (_dimension s - 1)]
-                       pointToList p = zipWith (_coord s) [0 .. (_dimension s - 1)] (repeat p)
-                       coordLists = L.transpose $ map (pointToList . fst) ps
-                       uniqueCoords = map S.toList $ map S.fromList coordLists
-                   in  if all ((== length ps) . length) uniqueCoords
-                       then KdTree s (buildTree s sortedByAxis 0)
-                       else error $ show $ map length uniqueCoords ++ [length ps]
-
--- TODO: just make KdTree foldable I guess
-toListInternal :: Tree p d -> [(p, d)]
-toListInternal t = go t []
- where go TreeEmpty = id
-       go (TreeNode l p r _) = go l . (p :) . go r
-
-toList :: KdTree p d -> [(p, d)]
-toList (KdTree _ t) = toListInternal t
-
--- |subtrees t returns a list containing t and all its subtrees, including the
--- empty leaf nodes.
-subtrees :: KdTree p d -> [KdTree p d]
-subtrees t = go t []
- where go (KdTree _ TreeEmpty) = id
-       go root@(KdTree s (TreeNode l _ r _)) = go (KdTree s l) . (root :) . go (KdTree s r)
+                   in  KdTree s $ buildTree s sortedByAxis 0
 
 -- |nearestNeighbor tree p returns the nearest neighbor of p in tree.
 nearestNeighbor :: KdTree p d -> p -> Maybe (p, d)
-nearestNeighbor (KdTree s t) = nearestNeighbor' t
+nearestNeighbor (KdTree s t) = Just . fst . fromJust . nearestNeighbor' t
  where nearestNeighbor' TreeEmpty _ = Nothing
-       nearestNeighbor' (TreeNode TreeEmpty x TreeEmpty _) _ = Just x
+       nearestNeighbor' (TreeNode TreeEmpty x TreeEmpty _) probe = Just (x, _dist2 s probe $ fst x)
        nearestNeighbor' (TreeNode l (p, d) r axis) probe =
          if xProbe <= xp then findNearest l r else findNearest r l
            where xProbe = (_coord s) axis probe
                  xp = (_coord s) axis p
+                 pDist = _dist2 s probe p
                  findNearest tree1 tree2 =
-                   let candidates1 = case nearestNeighbor' tree1 probe of
-                                       Nothing -> [(p, d)]
-                                       Just best1 -> [best1, (p, d)]
-                       sphereIntersectsPlane = (xProbe - xp)^(2 :: Int) <= (_dist2 s) probe p
-                       candidates2 = if sphereIntersectsPlane
-                                     -- TODO don't concat
-                                     then candidates1 ++ maybeToList (nearestNeighbor' tree2 probe)
-                                     else candidates1
-                   in  Just . L.minimumBy (\(a,_) (b,_) -> compareDistance s probe a b) $ candidates2
+                   let candidate1 = case nearestNeighbor' tree1 probe of
+                                      Nothing -> ((p, d), pDist)
+                                      Just (bestP, bestD) -> if bestD < pDist
+                                                             then (bestP, bestD)
+                                                             else ((p, d), pDist)
+                       sphereIntersectsPlane = (xProbe - xp)^(2 :: Int) <= pDist
+                   in  if sphereIntersectsPlane
+                       then let candidate2 = nearestNeighbor' tree2 probe
+                            in  case candidate2 of
+                                  Nothing -> Just candidate1
+                                  Just c2 -> if snd c2 < snd candidate1
+                                             then candidate2
+                                             else Just candidate1
+                       else Just candidate1
 
 -- |nearNeighbors tree p returns all neighbors within distance r from p in tree.
 nearNeighbors :: KdTree p d -> Double -> p -> [(p, d)]
@@ -176,21 +160,14 @@ nearNeighbors (KdTree s t) radius probe = nearNeighbors' t
                            then [(p, d)]
                            else []
 
--- |isValid tells whether the K-D tree property holds for a given tree.
--- Specifically, it tests that all points in the left subtree lie to the left
--- of the plane, p is on the plane, and all points in the right subtree lie to
--- the right.
-isValid :: KdTree p d -> Bool
-isValid (KdTree _ TreeEmpty) = True
-isValid (KdTree s (TreeNode l (p, _) r axis)) = leftIsGood && rightIsGood
-    where x = (_coord s) axis p
-          leftIsGood = all ((<= x) . (_coord s) axis) (map fst $ toListInternal l)
-          rightIsGood = all ((>= x) . (_coord s) axis) (map fst $ toListInternal r)
+-- TODO: just make KdTree foldable I guess
+toListInternal :: Tree p d -> [(p, d)]
+toListInternal t = go t []
+ where go TreeEmpty = id
+       go (TreeNode l p r _) = go l . (p :) . go r
 
--- |allSubtreesAreValid tells whether the K-D tree property holds for the given
--- tree and all subtrees.
-allSubtreesAreValid :: KdTree p d -> Bool
-allSubtreesAreValid = all isValid . subtrees
+toList :: KdTree p d -> [(p, d)]
+toList (KdTree _ t) = toListInternal t
 
 -- |kNearestNeighbors tree k p returns the k closest points to p within tree.
 -- TODO fucking horrible
