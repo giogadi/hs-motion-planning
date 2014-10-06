@@ -39,13 +39,14 @@ module Data.Trees.KdTree
        , buildKdTree
        , toList
        , nearestNeighbor
-       -- , nearNeighbors
+       , nearNeighbors
        -- , kNearestNeighbors
        , mk2DEuclideanSpace
        , Point2d (..)
        -- Tests
        , checkValidTree
-       , checkEqualToLinear
+       , checkNearestEqualToLinear
+       , checkNearEqualToLinear
        ) where
 
 import Control.DeepSeq
@@ -54,6 +55,7 @@ import GHC.Generics
 
 import Data.Function
 import qualified Data.List as L
+import qualified Data.Set as S
 import qualified Data.Vector as V
 import Test.QuickCheck
 
@@ -68,9 +70,9 @@ incrementAxis :: EuclideanSpace s -> Int -> Int
 incrementAxis s axis = (axis + 1) `mod` _dimension s
 
 -- TODO - might not even need to store kdAxis
-data TreeNode p d = TreeNode { kdLeft :: Maybe (TreeNode p d)
-                             , kdPoint :: (p, d)
-                             , kdRight :: Maybe (TreeNode p d)
+data TreeNode p d = TreeNode { treeLeft :: Maybe (TreeNode p d)
+                             , treePoint :: (p, d)
+                             , treeRight :: Maybe (TreeNode p d)
                              }
                 deriving Generic
 instance (NFData p, NFData d) => NFData (TreeNode p d) where rnf = genericRnf
@@ -96,39 +98,14 @@ buildTreeInternal s sortedByAxis axis
                      Nothing -> error "we done fucked up yo"
         (leftPoints, rightPoints) = unzip $ zipWith partitionVec sortedByAxis [0..]
     in  TreeNode
-        { kdLeft = maybeBuildTree leftPoints
-        , kdPoint = median
-        , kdRight = maybeBuildTree rightPoints
+        { treeLeft = maybeBuildTree leftPoints
+        , treePoint = median
+        , treeRight = maybeBuildTree rightPoints
         }
   where n = V.length $ head sortedByAxis
         maybeBuildTree ps
           | V.null $ head ps = Nothing
           | otherwise = Just $ buildTreeInternal s ps $ incrementAxis s axis
-
--- buildTree :: EuclideanSpace p -> [V.Vector (p, d)] -> Int -> Tree p d
--- buildTree s sortedByAxis axis
---  | n == 0 = TreeEmpty
---  | otherwise = let medianIx = n `div` (2 :: Int)
---                    median = (sortedByAxis !! axis) V.! medianIx
---                    split = _coord s axis $ fst median
---                    partitionVec vec vAxis =
---                      if vAxis == axis
---                      then let (left, medAndRight) = V.splitAt medianIx vec
---                           in  (left, V.tail medAndRight)
---                      else let (left, medAndRight) = V.partition ((< split) . _coord s axis . fst) vec
---                           in  case V.findIndex ((== split) . _coord s axis . fst) medAndRight of
---                                 Just ix -> let (l, r) = V.splitAt ix medAndRight
---                                            in  (left, l V.++ V.tail r)
---                                 Nothing -> error "we done fucked up yo"
---                    (leftPoints, rightPoints) = unzip $ zipWith partitionVec sortedByAxis [0..]
---                    nextAxis = (axis + 1) `mod` _dimension s
---                in  TreeNode
---                    { kdLeft = (buildTree s leftPoints nextAxis)
---                    , kdPoint = median
---                    , kdRight = (buildTree s rightPoints nextAxis)
---                    , kdAxis = nextAxis
---                    }
---   where n = V.length $ head sortedByAxis
 
 buildKdTree :: EuclideanSpace p -> [(p, d)] -> KdTree p d
 buildKdTree _ [] = error "Who wants an empty KdTree anyway?"
@@ -159,6 +136,7 @@ isTreeValid s axis (TreeNode l (p, _) r) =
 nearestNeighbor :: KdTree p d -> p -> (p, d)
 nearestNeighbor (KdTree s t) = fst . go 0 t
   where
+    -- TODO remove query from go's argument list
     go _ (TreeNode Nothing (x, d) Nothing) query = ((x, d), _dist2 s query x)
     go axis (TreeNode maybeLeft (x, d) maybeRight) query =
       let queryAxisValue = (_coord s) axis query
@@ -183,55 +161,27 @@ nearestNeighbor (KdTree s t) = fst . go 0 t
           then nearestInSubtrees maybeLeft maybeRight
           else nearestInSubtrees maybeRight maybeLeft
 
--- -- |nearestNeighbor tree p returns the nearest neighbor of p in tree.
--- nearestNeighbor :: KdTree p d -> p -> Maybe (p, d)
--- nearestNeighbor (KdTree s t) = Just . fst . fromJust . nearestNeighbor' t
---  where nearestNeighbor' TreeEmpty _ = Nothing
---        nearestNeighbor' (TreeNode TreeEmpty x TreeEmpty _) probe = Just (x, _dist2 s probe $ fst x)
---        nearestNeighbor' (TreeNode l (p, d) r axis) probe =
---          if xProbe <= xp then findNearest l r else findNearest r l
---            where xProbe = (_coord s) axis probe
---                  xp = (_coord s) axis p
---                  pDist = _dist2 s probe p
---                  findNearest tree1 tree2 =
---                    let candidate1 = case nearestNeighbor' tree1 probe of
---                                       Nothing -> ((p, d), pDist)
---                                       Just (bestP, bestD) -> if bestD < pDist
---                                                              then (bestP, bestD)
---                                                              else ((p, d), pDist)
---                        sphereIntersectsPlane = (xProbe - xp)^(2 :: Int) <= pDist
---                    in  if sphereIntersectsPlane
---                        then let candidate2 = nearestNeighbor' tree2 probe
---                             in  case candidate2 of
---                                   Nothing -> Just candidate1
---                                   Just c2 -> if snd c2 < snd candidate1
---                                              then candidate2
---                                              else Just candidate1
---                        else Just candidate1
-
--- |nearNeighbors tree p returns all neighbors within distance r from p in tree.
--- nearNeighbors :: KdTree p d -> Double -> p -> [(p, d)]
--- nearNeighbors (KdTree s t) radius probe = nearNeighbors' t
---  where nearNeighbors' TreeEmpty = []
---        nearNeighbors' (TreeNode TreeEmpty (p, d) TreeEmpty _) =
---          if (_dist2 s) p probe <= radius*radius
---          then [(p, d)]
---          else []
---        nearNeighbors' (TreeNode l (p, d) r axis) =
---          if xProbe <= xp
---          then let nearest = maybePivot ++ nearNeighbors' l
---               in  if xProbe + abs radius > xp
---                   then nearNeighbors' r ++ nearest
---                   else nearest
---          else let nearest = maybePivot ++ nearNeighbors' r
---               in  if xProbe - abs radius < xp
---                   then nearNeighbors' l ++ nearest
---                   else nearest
---         where xProbe     = (_coord s) axis probe
---               xp         = (_coord s) axis p
---               maybePivot = if (_dist2 s) probe p <= radius * radius
---                            then [(p, d)]
---                            else []
+-- TODO try to do better than concats
+nearNeighbors :: KdTree p d -> Double -> p -> [(p, d)]
+nearNeighbors (KdTree s t) radius query = go 0 t
+  where go axis (TreeNode maybeLeft (p, d) maybeRight) =
+          let xAxisVal     = _coord s axis p
+              queryAxisVal = _coord s axis query
+              nextAxis     = incrementAxis s axis
+              nears = maybe [] (go nextAxis)
+              onTheLeft = queryAxisVal <= xAxisVal
+              onsideNear = if onTheLeft
+                           then nears maybeLeft
+                           else nears maybeRight
+              offsideNear = if abs (queryAxisVal - xAxisVal) < radius
+                            then if onTheLeft
+                                 then nears maybeRight
+                                 else nears maybeLeft
+                            else []
+              currentNear = if _dist2 s p query <= radius * radius
+                            then [(p, d)]
+                            else []
+          in  onsideNear ++ currentNear ++ offsideNear
 
 -- |kNearestNeighbors tree k p returns the k closest points to p within tree.
 -- TODO fucking horrible
@@ -247,7 +197,7 @@ nearestNeighbor (KdTree s t) = fst . go 0 t
 -- remove t@(KdTree s _) pKill = let ps = toList t
 --                               in  buildKdTree s $ filter ((/= pKill) . fst) ps
 
-data Point2d = Point2d Double Double deriving (Show, Eq, Generic)
+data Point2d = Point2d Double Double deriving (Show, Eq, Ord, Generic)
 instance NFData Point2d where rnf = genericRnf
 
 mk2DEuclideanSpace :: EuclideanSpace Point2d
@@ -274,6 +224,7 @@ instance Arbitrary Point2d where
 -- Tests
 --------------------------------------------------------------------------------
 
+-- TODO make each point's data different
 testElements :: [p] -> [(p, ())]
 testElements ps = zip ps $ repeat ()
 
@@ -288,8 +239,21 @@ nearestNeighborLinear s xs query =
   L.minimumBy (\(p1, _) (p2, _) -> compareDistance p1 p2) xs
   where compareDistance p1 p2 = _dist2 s query p1 `compare` _dist2 s query p2
 
-checkEqualToLinear :: Eq p => EuclideanSpace p -> ([p], p) -> Bool
-checkEqualToLinear _ ([], _) = True
-checkEqualToLinear s (ps, query) =
+checkNearestEqualToLinear :: Eq p => EuclideanSpace p -> ([p], p) -> Bool
+checkNearestEqualToLinear _ ([], _) = True
+checkNearestEqualToLinear s (ps, query) =
   let kdt = buildKdTree s $ testElements ps
   in  nearestNeighbor kdt query == nearestNeighborLinear s (testElements ps) query
+
+nearNeighborsLinear :: EuclideanSpace p -> [(p, d)] -> p -> Double -> [(p, d)]
+nearNeighborsLinear s xs query radius =
+  filter ((<= radius * radius) . _dist2 s query . fst) xs
+
+-- TODO make radius part of quickCheck arguments, but only allow nonnegative radii
+checkNearEqualToLinear :: Ord p => EuclideanSpace p -> Double -> ([p], p) -> Bool
+checkNearEqualToLinear _ _ ([], _) = True
+checkNearEqualToLinear s radius (ps, query) =
+  let kdt = buildKdTree s $ testElements ps
+      kdtNear = map fst $ nearNeighbors kdt radius query
+      linearNear = map fst $ nearNeighborsLinear s (testElements ps) query radius
+  in  S.fromList kdtNear == S.fromList linearNear
