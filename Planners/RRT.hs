@@ -54,14 +54,14 @@ writeRRT rrt fileName = writeFile fileName $ intercalate "\n" edgeStrings
 
 extendRRT :: NN n => RRT s n -> s -> RRT s n
 extendRRT rrt sample =
-    let near = snd $ nearest (_nodes rrt) sample
-        nearState = nodeState near
+    let nearNode = snd $ nearest (_nodes rrt) sample
+        nearState = nodeState nearNode
         newState = let d = getDist rrt nearState sample
                    in  if d <= _stepSize rrt
-                       then nearState
+                       then sample
                        else getInterp rrt nearState sample $ _stepSize rrt / d
     in  if _valid rrt nearState newState
-        then let newNode = Node newState near
+        then let newNode = Node newState nearNode
                  solution = if (_goalSatisfied $ _query rrt) newState
                             then Just newNode
                             else Nothing

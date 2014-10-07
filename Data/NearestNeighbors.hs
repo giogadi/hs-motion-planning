@@ -8,7 +8,6 @@ module Data.NearestNeighbors
 
 -- import Data.List (sortBy, foldl')
 import Data.List hiding (insert)
-import Data.Maybe
 import Data.Function (on)
 
 import Data.MotionPlanningProblem
