@@ -15,6 +15,7 @@ module Data.Trees.KdTree
        , checkNearestEqualToLinear
        , checkNearEqualToLinear
        , checkKNearestEqualToLinear
+       , checkKNearestSorted
        ) where
 
 import Control.DeepSeq
@@ -115,7 +116,6 @@ nearestNeighbor (KdTree s t@(TreeNode _ root _)) query =
           currAxisValue  = _coord s axis curr_p
           currDist       = _dist2 s query curr_p
           nextAxis       = incrementAxis s axis
-          curr           = ((curr_p, curr_d), currDist)
           bestAfterCurr = better ((curr_p, curr_d), currDist) bestSoFar
           nearestInTree maybeOnsideTree maybeOffsideTree =
             let bestAfterOnside =
@@ -129,7 +129,28 @@ nearestNeighbor (KdTree s t@(TreeNode _ root _)) query =
           then nearestInTree maybeLeft maybeRight
           else nearestInTree maybeRight maybeLeft
 
--- TODO try to do better than concats
+-- TODO why isn't this faster than the concat-based version?
+-- nearNeighbors :: KdTree p d -> Double -> p -> [(p, d)]
+-- nearNeighbors (KdTree s t) radius query = go 0 t []
+--   where go axis (TreeNode maybeLeft (p, d) maybeRight) =
+--           let xAxisVal     = _coord s axis p
+--               queryAxisVal = _coord s axis query
+--               nextAxis     = incrementAxis s axis
+--               nears = maybe id (go nextAxis)
+--               onTheLeft = queryAxisVal <= xAxisVal
+--               onsideNear = if onTheLeft
+--                            then nears maybeLeft
+--                            else nears maybeRight
+--               offsideNear = if abs (queryAxisVal - xAxisVal) < radius
+--                             then if onTheLeft
+--                                  then nears maybeRight
+--                                  else nears maybeLeft
+--                             else id
+--               currentNear = if _dist2 s p query <= radius * radius
+--                             then ((p, d) :)
+--                             else id
+--           in  onsideNear . currentNear . offsideNear
+
 nearNeighbors :: KdTree p d -> Double -> p -> [(p, d)]
 nearNeighbors (KdTree s t) radius query = go 0 t
   where go axis (TreeNode maybeLeft (p, d) maybeRight) =
@@ -152,7 +173,7 @@ nearNeighbors (KdTree s t) radius query = go 0 t
           in  onsideNear ++ currentNear ++ offsideNear
 
 kNearestNeighbors :: KdTree p d -> Int -> p -> [(p, d)]
-kNearestNeighbors (KdTree s t) k query = map snd $ Q.toList $ go 0 Q.empty t
+kNearestNeighbors (KdTree s t) k query = reverse $ map snd $ Q.toList $ go 0 Q.empty t
   where -- go :: Int -> Q.MaxPQueue Double (p, d) -> TreeNode p d -> KQueue p d
         go axis q (TreeNode maybeLeft (p, d) maybeRight) =
           let queryAxisValue = _coord s axis query
@@ -215,8 +236,7 @@ checkValidTree s ps =
 
 nearestNeighborLinear :: EuclideanSpace p -> [(p, d)] -> p -> (p, d)
 nearestNeighborLinear s xs query =
-  L.minimumBy (\(p1, _) (p2, _) -> compareDistance p1 p2) xs
-  where compareDistance p1 p2 = _dist2 s query p1 `compare` _dist2 s query p2
+  L.minimumBy (compare `on` (_dist2 s query . fst)) xs
 
 checkNearestEqualToLinear :: Eq p => EuclideanSpace p -> ([p], p) -> Bool
 checkNearestEqualToLinear _ ([], _) = True
@@ -239,8 +259,7 @@ checkNearEqualToLinear s radius (ps, query) =
 
 kNearestNeighborsLinear :: EuclideanSpace p -> [(p, d)] -> p -> Int -> [(p, d)]
 kNearestNeighborsLinear s xs query k =
-  let near = compare `on` (_dist2 s query . fst)
-  in  take k $ L.sortBy near xs
+  take k $ L.sortBy (compare `on` (_dist2 s query . fst)) xs
 
 -- TODO make k a positive part of quickCheck arguments
 checkKNearestEqualToLinear :: Ord p => EuclideanSpace p -> Int -> ([p], p) -> Bool
@@ -250,3 +269,10 @@ checkKNearestEqualToLinear s k (xs, query) =
       kdtKNear = map fst $ kNearestNeighbors kdt k query
       linearKNear = map fst $ kNearestNeighborsLinear s (testElements xs) query k
   in  S.fromList kdtKNear == S.fromList linearKNear
+
+checkKNearestSorted :: Eq p => EuclideanSpace p -> ([p], p) -> Bool
+checkKNearestSorted _ ([], _) = True
+checkKNearestSorted s (ps, query) =
+  let kdt = buildKdTree s $ testElements ps
+      kNearestDists = map (_dist2 s query . fst) $ kNearestNeighbors kdt (length ps) query
+  in  kNearestDists == L.sort kNearestDists
