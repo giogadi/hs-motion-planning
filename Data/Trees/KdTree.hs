@@ -38,12 +38,11 @@ instance NFData p => NFData (EuclideanSpace p) where rnf = genericRnf
 incrementAxis :: EuclideanSpace s -> Int -> Int
 incrementAxis s axis = (axis + 1) `mod` _dimension s
 
--- TODO - might not even need to store kdAxis
 data TreeNode p d = TreeNode { treeLeft :: Maybe (TreeNode p d)
                              , treePoint :: (p, d)
                              , treeRight :: Maybe (TreeNode p d)
                              }
-                deriving Generic
+                             deriving Generic
 instance (NFData p, NFData d) => NFData (TreeNode p d) where rnf = genericRnf
 
 data KdTree p d = KdTree (EuclideanSpace p) (TreeNode p d) deriving Generic
@@ -103,35 +102,32 @@ isTreeValid s axis (TreeNode l (p, _) r) =
   in  leftChildValid && rightChildValid && leftSubtreeValid && rightSubtreeValid
 
 nearestNeighbor :: KdTree p d -> p -> (p, d)
-nearestNeighbor (KdTree s t) = fst . go 0 t
+nearestNeighbor (KdTree s t@(TreeNode _ root _)) query =
+  -- This is an ugly way to kickstart the function but it's faster
+  -- than using a Maybe.
+  fst $ go 0 (root, 1 / 0 :: Double) t
   where
-    -- TODO remove query from go's argument list
-    go _ (TreeNode Nothing (x, d) Nothing) query = ((x, d), _dist2 s query x)
-    go axis (TreeNode maybeLeft (x, d) maybeRight) query =
-      let queryAxisValue = (_coord s) axis query
-          xAxisValue     = (_coord s) axis x
-          xDist          = _dist2 s query x
+    go axis bestSoFar (TreeNode maybeLeft (curr_p, curr_d) maybeRight) =
+      let better (x1, dist1) (x2, dist2) = if dist1 < dist2
+                                           then (x1, dist1)
+                                           else (x2, dist2)
+          queryAxisValue = _coord s axis query
+          currAxisValue  = _coord s axis curr_p
+          currDist       = _dist2 s query curr_p
           nextAxis       = incrementAxis s axis
-          -- "onside" refers to the child on the same side of this
-          -- node's axis as the query.
-          --
-          -- TODO: maybe faster to have recursed search use best dist
-          -- val already min'd with current val?
-          nearestInSubtrees maybeOnsideTree maybeOffsideTree =
-            let maybeNearestOnside = fmap ((flip $ go nextAxis) query) maybeOnsideTree
-                nearest :: ((p, d), Double) -> Maybe ((p, d), Double) -> ((p, d), Double)
-                nearest p Nothing = p
-                nearest p@(_, dist1) (Just (q@(_, dist2))) =
-                  if dist1 < dist2 then p else q
-                nearestSoFar = nearest ((x, d), xDist) maybeNearestOnside
-                checkOffsideTree = (queryAxisValue - xAxisValue)^(2 :: Int) < snd nearestSoFar
-                maybeNearestOffside = if checkOffsideTree
-                                      then fmap ((flip $ go nextAxis) query) maybeOffsideTree
-                                      else Nothing
-            in  nearest nearestSoFar maybeNearestOffside
-      in  if queryAxisValue <= xAxisValue
-          then nearestInSubtrees maybeLeft maybeRight
-          else nearestInSubtrees maybeRight maybeLeft
+          curr           = ((curr_p, curr_d), currDist)
+          bestAfterCurr = better ((curr_p, curr_d), currDist) bestSoFar
+          nearestInTree maybeOnsideTree maybeOffsideTree =
+            let bestAfterOnside =
+                  maybe bestAfterCurr (go nextAxis $ bestAfterCurr) maybeOnsideTree
+                checkOffsideTree =
+                  (queryAxisValue - currAxisValue)^(2 :: Int) < snd bestAfterOnside
+            in  if checkOffsideTree
+                then maybe bestAfterOnside (go nextAxis $ bestAfterOnside) maybeOffsideTree
+                else bestAfterOnside
+      in  if queryAxisValue <= currAxisValue
+          then nearestInTree maybeLeft maybeRight
+          else nearestInTree maybeRight maybeLeft
 
 -- TODO try to do better than concats
 nearNeighbors :: KdTree p d -> Double -> p -> [(p, d)]
@@ -155,11 +151,9 @@ nearNeighbors (KdTree s t) radius query = go 0 t
                             else []
           in  onsideNear ++ currentNear ++ offsideNear
 
-type KQueue p d = Q.MaxPQueue Double (p, d)
-
 kNearestNeighbors :: KdTree p d -> Int -> p -> [(p, d)]
 kNearestNeighbors (KdTree s t) k query = map snd $ Q.toList $ go 0 Q.empty t
-  where -- go :: Int -> KQueue p d -> TreeNode p d -> KQueue p d
+  where -- go :: Int -> Q.MaxPQueue Double (p, d) -> TreeNode p d -> KQueue p d
         go axis q (TreeNode maybeLeft (p, d) maybeRight) =
           let queryAxisValue = _coord s axis query
               xAxisValue = _coord s axis p
