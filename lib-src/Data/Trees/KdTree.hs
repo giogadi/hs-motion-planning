@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, TemplateHaskell #-}
 
 module Data.Trees.KdTree
        ( EuclideanSpace (..)
@@ -10,12 +10,7 @@ module Data.Trees.KdTree
        , kNearestNeighbors
        , mk2DEuclideanSpace
        , Point2d (..)
-       -- Tests
-       , checkValidTree
-       , checkNearestEqualToLinear
-       , checkNearEqualToLinear
-       , checkKNearestEqualToLinear
-       , checkKNearestSorted
+       , runTests
        ) where
 
 import Control.DeepSeq
@@ -224,51 +219,64 @@ instance Arbitrary Point2d where
 -- Tests
 --------------------------------------------------------------------------------
 
--- TODO make each point's data different
-testElements :: [p] -> [(p, ())]
-testElements ps = zip ps $ repeat ()
+testElements :: [p] -> [(p, Int)]
+testElements ps = zip ps $ [0 ..]
 
 checkValidTree :: EuclideanSpace p -> [p] -> Bool
-checkValidTree _ [] = True
 checkValidTree s ps =
   let (KdTree _ t) = buildKdTree s $ testElements ps
   in  isTreeValid s 0 t
+
+prop_validTree :: Property
+prop_validTree = forAll (listOf1 arbitrary) $ checkValidTree mk2DEuclideanSpace
 
 nearestNeighborLinear :: EuclideanSpace p -> [(p, d)] -> p -> (p, d)
 nearestNeighborLinear s xs query =
   L.minimumBy (compare `on` (_dist2 s query . fst)) xs
 
 checkNearestEqualToLinear :: Eq p => EuclideanSpace p -> ([p], p) -> Bool
-checkNearestEqualToLinear _ ([], _) = True
 checkNearestEqualToLinear s (ps, query) =
   let kdt = buildKdTree s $ testElements ps
   in  nearestNeighbor kdt query == nearestNeighborLinear s (testElements ps) query
+
+prop_nearestEqualToLinear :: Point2d -> Property
+prop_nearestEqualToLinear query =
+  forAll (listOf1 arbitrary) $ \xs ->
+    checkNearestEqualToLinear mk2DEuclideanSpace (xs, query)
 
 nearNeighborsLinear :: EuclideanSpace p -> [(p, d)] -> p -> Double -> [(p, d)]
 nearNeighborsLinear s xs query radius =
   filter ((<= radius * radius) . _dist2 s query . fst) xs
 
--- TODO make radius part of quickCheck arguments, but only allow nonnegative radii
 checkNearEqualToLinear :: Ord p => EuclideanSpace p -> Double -> ([p], p) -> Bool
-checkNearEqualToLinear _ _ ([], _) = True
 checkNearEqualToLinear s radius (ps, query) =
   let kdt = buildKdTree s $ testElements ps
-      kdtNear = map fst $ nearNeighbors kdt radius query
-      linearNear = map fst $ nearNeighborsLinear s (testElements ps) query radius
+      kdtNear = nearNeighbors kdt radius query
+      linearNear = nearNeighborsLinear s (testElements ps) query radius
   in  S.fromList kdtNear == S.fromList linearNear
+
+prop_nearEqualToLinear :: Point2d -> Property
+prop_nearEqualToLinear query =
+  forAll (listOf1 arbitrary) $ \xs ->
+    forAll (choose (0.0, 1000.0)) $ \radius ->
+    checkNearEqualToLinear mk2DEuclideanSpace radius (xs, query)
 
 kNearestNeighborsLinear :: EuclideanSpace p -> [(p, d)] -> p -> Int -> [(p, d)]
 kNearestNeighborsLinear s xs query k =
   take k $ L.sortBy (compare `on` (_dist2 s query . fst)) xs
 
--- TODO make k a positive part of quickCheck arguments
 checkKNearestEqualToLinear :: Ord p => EuclideanSpace p -> Int -> ([p], p) -> Bool
-checkKNearestEqualToLinear _ _ ([], _) = True
 checkKNearestEqualToLinear s k (xs, query) =
   let kdt = buildKdTree s $ testElements xs
-      kdtKNear = map fst $ kNearestNeighbors kdt k query
-      linearKNear = map fst $ kNearestNeighborsLinear s (testElements xs) query k
+      kdtKNear = kNearestNeighbors kdt k query
+      linearKNear = kNearestNeighborsLinear s (testElements xs) query k
   in  S.fromList kdtKNear == S.fromList linearKNear
+
+prop_kNearestEqualToLinear :: Point2d -> Property
+prop_kNearestEqualToLinear query =
+  forAll (listOf1 arbitrary) $ \xs ->
+    forAll (choose (1, length xs)) $ \k ->
+      checkKNearestEqualToLinear mk2DEuclideanSpace k (xs, query)
 
 checkKNearestSorted :: Eq p => EuclideanSpace p -> ([p], p) -> Bool
 checkKNearestSorted _ ([], _) = True
@@ -276,3 +284,13 @@ checkKNearestSorted s (ps, query) =
   let kdt = buildKdTree s $ testElements ps
       kNearestDists = map (_dist2 s query . fst) $ kNearestNeighbors kdt (length ps) query
   in  kNearestDists == L.sort kNearestDists
+
+prop_kNearestSorted :: Point2d -> Property
+prop_kNearestSorted query =
+  forAll (listOf1 arbitrary) $ \xs ->
+    checkKNearestSorted mk2DEuclideanSpace (xs, query)
+
+-- Run all tests
+return []
+runTests :: IO Bool
+runTests = $quickCheckAll
