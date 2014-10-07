@@ -17,10 +17,10 @@ import qualified Data.Trees.DynamicKdTree as DKD
 
 data Point2D = Point2D
                {-# UNPACK #-} !Double
-               {-# UNPACK #-} !Double deriving (Eq)
+               {-# UNPACK #-} !Double deriving (Eq, Ord)
 
 instance Show Point2D where
-    show (Point2D x y) = show x ++ " " ++ show y
+  show (Point2D x y) = show x ++ " " ++ show y
 
 -- For Criterion profiling
 instance NFData Point2D where

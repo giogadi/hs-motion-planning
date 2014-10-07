@@ -60,9 +60,9 @@ mkLinearNN ss = LinearNN (_stateDistanceSqrd ss) []
 --------------------------------------------------------------------------------
 
 instance NN DkdTree where
-  insert t k d = DKD.insert t (k, d)
+  insert t k d = DKD.insert t k d
 
-  nearest t k = fromJust $ nearestNeighbor t k
+  nearest t k = nearestNeighbor t k
 
   nearestK t k q = kNearestNeighbors t k q
 

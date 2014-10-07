@@ -13,4 +13,8 @@ main = let minState = Point2D 0.0 0.0
                , _goalSatisfied = goalStateSatisfied ss 0.0 maxState
                }
            valid _ _ = True
-       in  defaultMain [bench "rrt" $ nf (solve ss q valid 0.01) 5000]
+           solveWithKDT n =
+             getPathToGoal $ evalDefaultSeed $ buildRRT ss q valid mkPoint2DKdTree 0.01 n
+       in  defaultMain [ bench "rrt" $ nf (solve ss q valid 0.01) 5000,
+                         bench "kdrrt" $ nf solveWithKDT 5000
+                       ]
