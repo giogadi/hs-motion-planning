@@ -40,6 +40,12 @@ main =
                           (buildKdTree mk2DEuclideanSpace) (zip (take 5000 treePoints) $ repeat ()),
                         bench "build-5000-query-5000" $ nf
                           (map (Data.Trees.KdTree.nearestNeighbor kdt5000))
+                          (take 5000 queryPoints),
+                        bench "build-5000-near-5000-r-0.1" $ nf
+                          (map (Data.Trees.KdTree.nearNeighbors kdt5000 0.1))
+                          (take 5000 queryPoints),
+                        bench "build-5000-k-near-5000-k-10" $ nf
+                          (map (Data.Trees.KdTree.kNearestNeighbors kdt5000 10))
                           (take 5000 queryPoints)
                       ]-- ,
       -- bgroup "dkdtree" [ bench "batch-5000" $ nf

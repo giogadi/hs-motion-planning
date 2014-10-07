@@ -1,36 +1,3 @@
--- Copyright (c)2011, Issac Trotts
---
--- All rights reserved.
---
--- Redistribution and use in source and binary forms, with or without
--- modification, are permitted provided that the following conditions are met:
---
---     * Redistributions of source code must retain the above copyright
---       notice, this list of conditions and the following disclaimer.
---
---     * Redistributions in binary form must reproduce the above
---       copyright notice, this list of conditions and the following
---       disclaimer in the documentation and/or other materials provided
---       with the distribution.
---
---     * Neither the name of Issac Trotts nor the names of other
---       contributors may be used to endorse or promote products derived
---       from this software without specific prior written permission.
---
--- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
--- "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
--- LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
--- A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
--- OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
--- SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
--- LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
--- DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
--- THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
--- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
--- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
--- Modifications made by Luis G. Torres.
-
 {-# LANGUAGE DeriveGeneric #-}
 
 module Data.Trees.KdTree
@@ -40,13 +7,14 @@ module Data.Trees.KdTree
        , toList
        , nearestNeighbor
        , nearNeighbors
-       -- , kNearestNeighbors
+       , kNearestNeighbors
        , mk2DEuclideanSpace
        , Point2d (..)
        -- Tests
        , checkValidTree
        , checkNearestEqualToLinear
        , checkNearEqualToLinear
+       , checkKNearestEqualToLinear
        ) where
 
 import Control.DeepSeq
@@ -55,6 +23,7 @@ import GHC.Generics
 
 import Data.Function
 import qualified Data.List as L
+import qualified Data.PQueue.Prio.Max as Q
 import qualified Data.Set as S
 import qualified Data.Vector as V
 import Test.QuickCheck
@@ -145,8 +114,11 @@ nearestNeighbor (KdTree s t) = fst . go 0 t
           nextAxis       = incrementAxis s axis
           -- "onside" refers to the child on the same side of this
           -- node's axis as the query.
+          --
+          -- TODO: maybe faster to have recursed search use best dist
+          -- val already min'd with current val?
           nearestInSubtrees maybeOnsideTree maybeOffsideTree =
-            let maybeNearestOnside  = fmap ((flip $ go nextAxis) query) maybeOnsideTree
+            let maybeNearestOnside = fmap ((flip $ go nextAxis) query) maybeOnsideTree
                 nearest :: ((p, d), Double) -> Maybe ((p, d), Double) -> ((p, d), Double)
                 nearest p Nothing = p
                 nearest p@(_, dist1) (Just (q@(_, dist2))) =
@@ -183,19 +155,32 @@ nearNeighbors (KdTree s t) radius query = go 0 t
                             else []
           in  onsideNear ++ currentNear ++ offsideNear
 
--- |kNearestNeighbors tree k p returns the k closest points to p within tree.
--- TODO fucking horrible
--- kNearestNeighbors :: Eq p => KdTree p d -> Int -> p -> [(p, d)]
--- kNearestNeighbors (KdTree _ TreeEmpty) _ _ = []
--- kNearestNeighbors _ k _ | k <= 0 = []
--- kNearestNeighbors tree k probe = nearest : kNearestNeighbors tree' (k-1) probe
---     where nearest = fromJust $ nearestNeighbor tree probe
---           tree' = tree `remove` fst nearest
+type KQueue p d = Q.MaxPQueue Double (p, d)
 
--- |remove t p removes the point p from t.
--- remove :: (Eq p) => KdTree p d -> p -> KdTree p d
--- remove t@(KdTree s _) pKill = let ps = toList t
---                               in  buildKdTree s $ filter ((/= pKill) . fst) ps
+kNearestNeighbors :: KdTree p d -> Int -> p -> [(p, d)]
+kNearestNeighbors (KdTree s t) k query = map snd $ Q.toList $ go 0 Q.empty t
+  where -- go :: Int -> KQueue p d -> TreeNode p d -> KQueue p d
+        go axis q (TreeNode maybeLeft (p, d) maybeRight) =
+          let queryAxisValue = _coord s axis query
+              xAxisValue = _coord s axis p
+              insertBounded queue dist x
+                | Q.size queue < k = Q.insert dist x queue
+                | otherwise = if dist < fst (Q.findMax queue)
+                              then Q.deleteMax $ Q.insert dist x queue
+                              else queue
+              q' = insertBounded q (_dist2 s p query) (p, d)
+              kNearest queue maybeOnsideTree maybeOffsideTree =
+                let queue' = maybe queue (go nextAxis queue) maybeOnsideTree
+                    nextAxis = incrementAxis s axis
+                    checkOffsideTree =
+                      Q.size queue' < k ||
+                      (queryAxisValue - xAxisValue)^(2 :: Int) < fst (Q.findMax queue')
+                in  if checkOffsideTree
+                    then maybe queue' (go nextAxis queue') maybeOffsideTree
+                    else queue'
+          in  if queryAxisValue <= xAxisValue
+              then kNearest q' maybeLeft maybeRight
+              else kNearest q' maybeRight maybeLeft
 
 data Point2d = Point2d Double Double deriving (Show, Eq, Ord, Generic)
 instance NFData Point2d where rnf = genericRnf
@@ -257,3 +242,17 @@ checkNearEqualToLinear s radius (ps, query) =
       kdtNear = map fst $ nearNeighbors kdt radius query
       linearNear = map fst $ nearNeighborsLinear s (testElements ps) query radius
   in  S.fromList kdtNear == S.fromList linearNear
+
+kNearestNeighborsLinear :: EuclideanSpace p -> [(p, d)] -> p -> Int -> [(p, d)]
+kNearestNeighborsLinear s xs query k =
+  let near = compare `on` (_dist2 s query . fst)
+  in  take k $ L.sortBy near xs
+
+-- TODO make k a positive part of quickCheck arguments
+checkKNearestEqualToLinear :: Ord p => EuclideanSpace p -> Int -> ([p], p) -> Bool
+checkKNearestEqualToLinear _ _ ([], _) = True
+checkKNearestEqualToLinear s k (xs, query) =
+  let kdt = buildKdTree s $ testElements xs
+      kdtKNear = map fst $ kNearestNeighbors kdt k query
+      linearKNear = map fst $ kNearestNeighborsLinear s (testElements xs) query k
+  in  S.fromList kdtKNear == S.fromList linearKNear

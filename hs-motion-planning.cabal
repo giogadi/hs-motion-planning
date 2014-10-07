@@ -121,7 +121,8 @@ benchmark KDTBenchmark
                        criterion >= 1.0.0.0 && <1.1,
                        QuickCheck >= 2.7.6 && <2.8,
                        deepseq >=1.1.0.0,
-                       deepseq-generics >=0.1.1.1
+                       deepseq-generics >=0.1.1.1,
+                       pqueue >=1.2.1 && <1.3
   default-language:    Haskell2010
 
 -- Test-Suite RRTTest
