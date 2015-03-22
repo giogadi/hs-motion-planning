@@ -1,19 +1,20 @@
 import Data.MotionPlanningProblem
+import Data.NearestNeighbors
 import Data.Spaces.EuclideanSpace (mkEuclideanSpace)
 import Planners.RRT
 
-import Data.FixedList
-
 main :: IO ()
-main = let minState = 0.0 :. 0.0 :. 0.0 :. Nil
-           maxState = 1.0 :. 1.0 :. 1.0 :. Nil
+main = let minState = [0, 0, 0]
+           maxState = [1, 1, 1]
            ss = mkEuclideanSpace minState maxState
            q = MotionPlanningQuery
                { _startState = minState
-               , _goalSatisfied = goalStateSatisfied ss 0.2 maxState
+               , _goalSatisfied = goalStateSatisfied ss 0.0 maxState
                }
            valid _ _ = True
-           rrt = buildRRTDefault ss q valid 0.1 1000
+           kdt = mkKdTreeNN ss id
+           -- rrt = buildRRTDefault ss q valid 0.1 1000
+           rrt = evalDefaultSeed $ buildRRT ss q valid kdt 0.01 50000
            motionPlan = getPathToGoal rrt
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."

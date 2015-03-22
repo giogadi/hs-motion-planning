@@ -32,7 +32,6 @@ library
                         containers >=0.5.0.0,
                         MonadRandom >=0.1.12,
                         mersenne-random-pure64 >=0.2.0.4,
-                        fixed-list >=0.1.5,
                         fgl >=5.4.2.4,
                         deepseq >=1.1.0.0,
                         QuickCheck >= 2.7.6,
@@ -62,7 +61,6 @@ executable RRT3DExample
   hs-source-dirs:       app-src
   ghc-options:          -Wall -O3
   build-depends:        base >=4.6.0.1,
-                        fixed-list >=0.1.5,
                         hs-motion-planning -any
   default-language:     Haskell2010
 

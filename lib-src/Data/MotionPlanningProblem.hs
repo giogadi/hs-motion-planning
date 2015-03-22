@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Data.MotionPlanningProblem
        ( StateSpace(..)
        , DistFn
@@ -13,7 +15,11 @@ module Data.MotionPlanningProblem
 
 import qualified Control.Monad.Random as CMR
 import System.Random.Mersenne.Pure64 (PureMT, pureMT)
+
+#if MIN_VERSION_base(4,8,0)
+#else
 import Data.Monoid
+#endif
 
 -- |A distance function that maps two states to a real number. In most
 -- cases, this function satisfies the properties of a metric.
