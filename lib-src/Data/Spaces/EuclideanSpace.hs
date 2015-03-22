@@ -1,13 +1,21 @@
+{-# LANGUAGE CPP #-}
+
 module Data.Spaces.EuclideanSpace
        ( mkEuclideanSpace
+       , stateAsList
        ) where
 
 import qualified Data.FixedList as FL
+
+#if MIN_VERSION_base(4,8,0)
+#else
 import Control.Applicative
-import Data.Foldable (sum)
+import Data.Traversable
+#endif
+
+import Data.Foldable (sum, toList)
 import qualified Data.MotionPlanningProblem as MP
 import qualified Control.Monad.Random as CMR
-import Data.Traversable
 
 addV :: (FL.FixedList f) => f Double -> f Double -> f Double
 v1 `addV` v2 = pure (+) <*> v1 <*> v2
@@ -37,6 +45,9 @@ interpolate s1 s2 d
     error $ "Data.EuclideanSpace.interpolate's parameter must be in [0,1]" ++ show d
   | otherwise = let v = s2 `minusV` s1
                 in  s1 `addV` scaleV v d
+
+stateAsList :: (FL.FixedList f) => f Double -> [Double]
+stateAsList = toList
 
 getUniformSampler :: FL.FixedList f =>
                      f Double -> f Double -> MP.StateSampler (f Double)

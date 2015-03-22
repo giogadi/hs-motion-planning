@@ -21,8 +21,6 @@ library
                         Data.Spaces.EuclideanSpace,
                         Data.Spaces.Point2DSpace,
                         Data.NearestNeighbors,
-                        Data.Trees.KdTree,
-                        Data.Trees.DynamicKdTree,
                         Planners.RRT
                         -- Planners.PRM
   hs-source-dirs:       lib-src
@@ -30,17 +28,17 @@ library
   -- other-extensions:
   ghc-options:          -Wall -O3
   build-depends:        base >=4.6.0.1,
-                        random >=1.0 && <1.1,
-                        containers >=0.5.0.0 && <0.6,
-                        MonadRandom >=0.1.12 && <0.2,
-                        mersenne-random-pure64 >=0.2.0.4 && <0.3,
-                        fixed-list ==0.1.5,
-                        fgl >=5.4.2.4 && <5.6,
-                        pqueue >=1.2.1 && <1.3,
+                        random >=1.0,
+                        containers >=0.5.0.0,
+                        MonadRandom >=0.1.12,
+                        mersenne-random-pure64 >=0.2.0.4,
+                        fixed-list >=0.1.5,
+                        fgl >=5.4.2.4,
                         deepseq >=1.1.0.0,
-                        QuickCheck >= 2.7.6 && <2.8,
-                        vector >=0.10.11.0 && <0.11,
-                        deepseq-generics >=0.1.1.1
+                        QuickCheck >= 2.7.6,
+                        vector >=0.10.11.0,
+                        deepseq-generics >=0.1.1.1,
+                        kdt -any
   default-language:     Haskell2010
 
 executable RRT2DExample
@@ -64,7 +62,7 @@ executable RRT3DExample
   hs-source-dirs:       app-src
   ghc-options:          -Wall -O3
   build-depends:        base >=4.6.0.1,
-                        fixed-list ==0.1.5,
+                        fixed-list >=0.1.5,
                         hs-motion-planning -any
   default-language:     Haskell2010
 
@@ -83,7 +81,7 @@ benchmark RRTBenchmark
   ghc-options:          -Wall -O3
   build-depends:        base >=4.6.0.1,
                         hs-motion-planning -any,
-                        criterion >= 1.0.0.0 && <1.1
+                        criterion >= 1.0.0.0
   default-language:     Haskell2010
 
 benchmark KDTBenchmark
@@ -93,16 +91,7 @@ benchmark KDTBenchmark
   ghc-options:          -Wall -O3
   build-depends:        base >=4.6.0.1,
                         hs-motion-planning -any,
-                        MonadRandom >=0.1.12 && <0.2,
-                        mersenne-random-pure64 >=0.2.0.4 && <0.3,
-                        criterion >= 1.0.0.0 && <1.1
-  default-language:     Haskell2010
-
-Test-Suite KdTreeTest
-  type:                 exitcode-stdio-1.0
-  main-is:              Tests/KdTreeTest.hs
-  hs-source-dirs:       app-src
-  ghc-options:          -Wall -O3
-  build-depends:        base >=4.6.0.1,
-                        hs-motion-planning -any
+                        MonadRandom >=0.1.12,
+                        mersenne-random-pure64 >=0.2.0.4,
+                        criterion >= 1.0.0.0
   default-language:     Haskell2010

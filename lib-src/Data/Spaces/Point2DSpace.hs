@@ -4,7 +4,6 @@ module Data.Spaces.Point2DSpace
        , stateDistance
        , stateDistanceSqrd
        , interpolate
-       , mkPoint2DKdTree
        ) where
 
 import qualified Control.Monad.Random as CMR
@@ -12,8 +11,6 @@ import Control.Monad (liftM2)
 import Control.DeepSeq
 
 import qualified Data.MotionPlanningProblem as MP
-import qualified Data.NearestNeighbors as NN
-import qualified Data.Trees.DynamicKdTree as DKD
 
 data Point2D = Point2D
                {-# UNPACK #-} !Double
@@ -56,14 +53,3 @@ mkPoint2DSpace pmin pmax = MP.StateSpace
                            stateDistanceSqrd
                            interpolate
                            (getUniformSampler pmin pmax)
-
-mkPoint2DKdTree :: DKD.DkdTree Point2D d
-mkPoint2DKdTree = let s = DKD.EuclideanSpace
-                          { DKD._dimension = 2
-                          , DKD._coord     = coord
-                          , DKD._dist2     = stateDistanceSqrd
-                          }
-                  in  NN.mkKdTreeNN s
-  where coord 0 (Point2D x _) = x
-        coord 1 (Point2D _ y) = y
-        coord _ _ = error "Tried to access invalid coordinate of Point2D!"

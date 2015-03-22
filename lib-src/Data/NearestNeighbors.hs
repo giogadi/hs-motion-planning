@@ -2,8 +2,8 @@ module Data.NearestNeighbors
        ( NN(..)
        , LinearNN
        , mkLinearNN
+       , KdTree
        , mkKdTreeNN
-       , EuclideanSpace (..)
        ) where
 
 -- import Data.List (sortBy, foldl')
@@ -11,7 +11,7 @@ import Data.List hiding (insert)
 import Data.Function (on)
 
 import Data.MotionPlanningProblem
-import Data.Trees.DynamicKdTree as DKD
+import qualified Data.KdMap.Static as KD
 
 class NN n where
   insert   :: n k d -> k -> d -> n k d
@@ -58,16 +58,19 @@ mkLinearNN ss = LinearNN (_stateDistanceSqrd ss) []
 -- KdTree nearest neighbors
 --------------------------------------------------------------------------------
 
-instance NN DkdTree where
-  insert t k d = DKD.insert t k d
+newtype KdTree p d = KdTree (KD.KdMap Double p d)
 
-  nearest t k = nearestNeighbor t k
+instance NN KdTree where
+  insert (KdTree t) k d = KdTree $ KD.insertUnbalanced t k d
 
-  nearestK t k q = kNearestNeighbors t k q
+  nearest (KdTree t) k = KD.nearest t k
 
-  size t = DKD.size t
+  nearestK (KdTree t) k q = KD.kNearest t k q
 
-  toList t = DKD.toList t
+  size (KdTree t) = KD.size t
 
-mkKdTreeNN :: EuclideanSpace p -> DkdTree p d
-mkKdTreeNN = emptyDkdTree
+  toList (KdTree t) = KD.assocs t
+
+mkKdTreeNN :: StateSpace p -> (p -> [Double]) -> KdTree p d
+mkKdTreeNN ss stateAsList =
+  KdTree $ KD.emptyWithDist stateAsList (_stateDistanceSqrd ss)
