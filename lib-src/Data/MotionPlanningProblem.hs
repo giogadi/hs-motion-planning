@@ -4,7 +4,10 @@ module Data.MotionPlanningProblem
        ( StateSpace(..)
        , DistFn
        , StateSampler
+       , Interpolator
        , MotionValidity
+       , StateValidity
+       , GoalPredicate
        , discreteMotionValid
        , MotionPlanningQuery(..)
        , goalStateSatisfied

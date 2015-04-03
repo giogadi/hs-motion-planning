@@ -13,13 +13,13 @@ import qualified Control.Monad.Random as CMR
 lengthSqrd :: V.Vector Double -> Double
 lengthSqrd s = V.sum $ V.zipWith (*) s s
 
-stateDistanceSqrd ::  V.Vector Double -> V.Vector Double -> Double
+stateDistanceSqrd :: MP.DistFn (V.Vector Double)
 stateDistanceSqrd s1 s2 = lengthSqrd $ V.zipWith (-) s2 s1
 
-stateDistance :: V.Vector Double -> V.Vector Double -> Double
+stateDistance :: MP.DistFn (V.Vector Double)
 stateDistance s1 s2 = sqrt $ stateDistanceSqrd s1 s2
 
-interpolate :: V.Vector Double -> V.Vector Double -> Double -> V.Vector Double
+interpolate :: MP.Interpolator (V.Vector Double)
 interpolate s1 s2 d
   | d < 0.0 || d > (1.0 + 1e-8) =
     error $ "Data.EuclideanSpace.interpolate's parameter must be in [0,1]" ++ show d
