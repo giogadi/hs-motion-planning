@@ -1,4 +1,5 @@
 import Data.MotionPlanningProblem
+import Data.NearestNeighbors
 import Data.Spaces.StandardSpace
 import Planners.RRT
 
@@ -16,6 +17,10 @@ fromPoint2DToPair (CompoundState [(RealState x), (RealState y)]) =
 
 fromPairToPoint2D :: (Double, Double) -> State
 fromPairToPoint2D (x, y) = CompoundState [(RealState x), (RealState y)]
+
+pointAsList :: State -> [Double]
+pointAsList (CompoundState [(RealState x), (RealState y)]) =
+  [x, y]
 
 data Circle2D = Circle2D
   { _center :: (Double, Double)
@@ -42,7 +47,8 @@ main = let minState = (0.0, 0.0)
                    goalStateSatisfied ss 0.1 $ fromPairToPoint2D maxState
                }
            valid = discreteMotionValid ss (pointOutsideCircle circleObs) 0.002
-           rrt = buildRRTDefault ss q valid 0.01 5000
+           kdt = mkKdTreeNN ss pointAsList
+           rrt = evalDefaultSeed $ buildRRT ss q valid kdt 0.01 5000
            motionPlan = getPathToGoal rrt
        in do
          putStrLn $ "Computed a motion plan with " ++ show (Prelude.length motionPlan) ++ " states."
