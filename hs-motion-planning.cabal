@@ -18,12 +18,9 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:      Data.MotionPlanningProblem,
-                        Data.Spaces.EuclideanSpace,
-                        Data.Spaces.Point2DSpace,
                         Data.Spaces.StandardSpace,
                         Data.NearestNeighbors,
                         Planners.RRT
-                        -- Planners.PRM
   hs-source-dirs:       lib-src
   -- other-modules:
   -- other-extensions:
@@ -41,24 +38,32 @@ library
                         kdt -any
   default-language:     Haskell2010
 
-executable RRT2DExample
-  main-is:              Examples/RRT2DExample.hs
-  hs-source-dirs:       app-src
-  ghc-options:          -Wall -O3
-  build-depends:        base >=4.6.0.1,
-                        hs-motion-planning -any
-  default-language:     Haskell2010
+-- executable RRT2DExample
+--   main-is:              Examples/RRT2DExample.hs
+--   hs-source-dirs:       app-src
+--   ghc-options:          -Wall -O3
+--   build-depends:        base >=4.6.0.1,
+--                         hs-motion-planning -any
+--   default-language:     Haskell2010
 
-executable RRT2DKDTExample
-  main-is:              Examples/RRT2DKDTExample.hs
-  hs-source-dirs:       app-src
-  ghc-options:          -Wall -O3
-  build-depends:        base >=4.6.0.1,
-                        hs-motion-planning -any
-  default-language:     Haskell2010
+-- executable RRT2DKDTExample
+--   main-is:              Examples/RRT2DKDTExample.hs
+--   hs-source-dirs:       app-src
+--   ghc-options:          -Wall -O3
+--   build-depends:        base >=4.6.0.1,
+--                         hs-motion-planning -any
+--   default-language:     Haskell2010
 
-executable RRT3DExample
-  main-is:              Examples/RRT3DExample.hs
+-- executable RRT3DExample
+--   main-is:              Examples/RRT3DExample.hs
+--   hs-source-dirs:       app-src
+--   ghc-options:          -Wall -O3
+--   build-depends:        base >=4.6.0.1,
+--                         hs-motion-planning -any
+--   default-language:     Haskell2010
+
+executable RRTPSMExample
+  main-is:              Examples/RRTPSMExample.hs
   hs-source-dirs:       app-src
   ghc-options:          -Wall -O3
   build-depends:        base >=4.6.0.1,

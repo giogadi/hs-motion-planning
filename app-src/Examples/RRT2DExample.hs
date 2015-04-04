@@ -1,5 +1,4 @@
 import Data.MotionPlanningProblem
---import Data.Spaces.Point2DSpace
 import Data.Spaces.StandardSpace
 import Planners.RRT
 
@@ -9,7 +8,7 @@ mkPoint2DSpace (minX, minY) (maxX, maxY) =
                      (RealStateSpace minX maxX, 1.0),
                      (RealStateSpace minY maxY, 1.0)
                    ]
-  in  mkStandardSpace pointSpace
+  in  mkStateSpace pointSpace
 
 fromPoint2DToPair :: State -> (Double, Double)
 fromPoint2DToPair (CompoundState [(RealState x), (RealState y)]) =

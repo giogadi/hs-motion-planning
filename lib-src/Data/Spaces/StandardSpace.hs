@@ -5,7 +5,9 @@ module Data.Spaces.StandardSpace
        , stateDistanceSqrd
        , interpolate
        , getUniformSampler
-       , mkStandardSpace
+       , mkStateSpace
+       , mkRealVectorSpace
+       , mkRotationalVectorSpace
        ) where
 
 import Control.Monad
@@ -77,10 +79,22 @@ getUniformSampler (CompoundStateSpace components) =
   let (spaces, _) = unzip components
   in  fmap CompoundState $ mapM getUniformSampler spaces
 
-mkStandardSpace :: StandardSpace -> MP.StateSpace State
-mkStandardSpace space =
+mkStateSpace :: StandardSpace -> MP.StateSpace State
+mkStateSpace space =
   MP.StateSpace
     (stateDistance space)
     (stateDistanceSqrd space)
     interpolate
     (getUniformSampler space)
+
+mkRealVectorSpace :: [(Double, Double)] -> MP.StateSpace State
+mkRealVectorSpace bounds =
+  let (minVals, maxVals) = unzip bounds
+      space = CompoundStateSpace $
+        zip (zipWith RealStateSpace minVals maxVals) (repeat 1.0)
+  in  mkStateSpace space
+
+mkRotationalVectorSpace :: Int -> MP.StateSpace State
+mkRotationalVectorSpace n =
+  mkStateSpace $ CompoundStateSpace $
+    zip (replicate n SO2StateSpace) (repeat 1.0)
